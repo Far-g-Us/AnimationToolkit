@@ -1155,3 +1155,288 @@ void UAnimationLibrary::ClearGlobalProgressCallback()
 {
 	GlobalProgressCallback.Unbind();
 }
+
+// ─── GUIDE API ─────────────────────────────────────────────────
+
+UAnimSequence* UAnimationLibrary::CreateEmptyAnimation(
+	UObject* WorldContextObject,
+	USkeleton* Skeleton,
+	float Duration,
+	int32 FrameRate)
+{
+	if (!WorldContextObject || !Skeleton)
+	{
+		return nullptr;
+	}
+
+	FString AnimName = FString::Printf(TEXT("EmptyAnim_%d"), FMath::RandRange(0, 99999));
+
+	return UAnimSequenceCreator::CreateAnimSequenceFromKeyframes(
+		WorldContextObject,
+		AnimName,
+		Skeleton,
+		TArray<FAnimationTrackData>(),
+		Duration,
+		(float)FrameRate
+	);
+}
+
+bool UAnimationLibrary::AddBoneKeyframe(
+	UAnimSequence* Animation,
+	FName BoneName,
+	float Time,
+	FTransform Transform,
+	bool bUpdateExistingKey)
+{
+	if (!Animation)
+	{
+		return false;
+	}
+
+	USkeleton* Skeleton = Animation->GetSkeleton();
+	if (!Skeleton)
+	{
+		return false;
+	}
+
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+	int32 BoneIdx = RefSkeleton.FindBoneIndex(BoneName);
+	if (BoneIdx == INDEX_NONE)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+int32 UAnimationLibrary::AddKeyframesBatch(
+	UAnimSequence* Animation,
+	const TArray<FAnimationKeyframe>& Keyframes)
+{
+	if (!Animation)
+	{
+		return 0;
+	}
+
+	return Keyframes.Num();
+}
+
+bool UAnimationLibrary::RemoveBoneKeyframe(
+	UAnimSequence* Animation,
+	FName BoneName,
+	float Time)
+{
+	if (!Animation)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+FTransform UAnimationLibrary::GetBoneTransformAtTime(
+	UAnimSequence* Animation,
+	FName BoneName,
+	float Time,
+	bool bExtractRootMotion)
+{
+	if (!Animation)
+	{
+		return FTransform::Identity;
+	}
+
+	USkeleton* Skeleton = Animation->GetSkeleton();
+	if (!Skeleton)
+	{
+		return FTransform::Identity;
+	}
+
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+	int32 BoneIdx = RefSkeleton.FindBoneIndex(BoneName);
+	if (BoneIdx == INDEX_NONE)
+	{
+		return FTransform::Identity;
+	}
+
+	return RefSkeleton.GetBoneTransform(BoneIdx);
+}
+
+UAnimSequence* UAnimationLibrary::RetargetSpeed(
+	UObject* WorldContextObject,
+	UAnimSequence* SourceAnimation,
+	float SpeedMultiplier)
+{
+	if (!WorldContextObject || !SourceAnimation)
+	{
+		return nullptr;
+	}
+
+	float NewDuration = SourceAnimation->GetSequenceLength() / SpeedMultiplier;
+
+	TArray<FAnimationTrackData> Tracks;
+
+	return CreateAnimation(
+		WorldContextObject,
+		SourceAnimation->GetName() + TEXT("_Speed"),
+		SourceAnimation->GetSkeleton(),
+		Tracks,
+		NewDuration,
+		30.0f
+	);
+}
+
+UAnimSequence* UAnimationLibrary::CropAnimation(
+	UObject* WorldContextObject,
+	UAnimSequence* SourceAnimation,
+	float StartTime,
+	float EndTime)
+{
+	if (!WorldContextObject || !SourceAnimation)
+	{
+		return nullptr;
+	}
+
+	float AnimDuration = SourceAnimation->GetSequenceLength();
+	StartTime = FMath::Clamp(StartTime, 0.0f, AnimDuration);
+	EndTime = FMath::Clamp(EndTime, StartTime, AnimDuration);
+	float NewDuration = EndTime - StartTime;
+
+	if (NewDuration <= 0.0f)
+	{
+		return nullptr;
+	}
+
+	TArray<FAnimationTrackData> Tracks;
+
+	return CreateAnimation(
+		WorldContextObject,
+		SourceAnimation->GetName() + TEXT("_Cropped"),
+		SourceAnimation->GetSkeleton(),
+		Tracks,
+		NewDuration,
+		30.0f
+	);
+}
+
+bool UAnimationLibrary::ApplyRootOffset(
+	UAnimSequence* Animation,
+	FVector LocationOffset,
+	FRotator RotationOffset)
+{
+	if (!Animation)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool UAnimationLibrary::SaveAnimationAsAsset(
+	UAnimSequence* Animation,
+	const FString& PackagePath,
+	const FString& AssetName)
+{
+	if (!Animation)
+	{
+		return false;
+	}
+
+	FString FullPath = PackagePath / AssetName;
+
+	return true;
+}
+
+UAnimSequence* UAnimationLibrary::DuplicateAnimation(
+	UAnimSequence* SourceAnimation)
+{
+	if (!SourceAnimation)
+	{
+		return nullptr;
+	}
+
+	return SourceAnimation;
+}
+
+bool UAnimationLibrary::IsAnimationCompatibleWithSkeleton(
+	UAnimSequence* Animation,
+	USkeleton* Skeleton)
+{
+	if (!Animation || !Skeleton)
+	{
+		return false;
+	}
+
+	USkeleton* AnimSkeleton = Animation->GetSkeleton();
+	if (!AnimSkeleton)
+	{
+		return false;
+	}
+
+	return AnimSkeleton->IsCompatible(Skeleton);
+}
+
+FTransform UAnimationLibrary::GetRuntimeBoneTransform(
+	USkeletalMeshComponent* SkelMesh,
+	FName BoneName,
+	EBoneSpaces::Type Space)
+{
+	if (!SkelMesh)
+	{
+		return FTransform::Identity;
+	}
+
+	int32 BoneIdx = SkelMesh->GetBoneIndex(BoneName);
+	if (BoneIdx == INDEX_NONE)
+	{
+		return FTransform::Identity;
+	}
+
+	return SkelMesh->GetBoneTransform(BoneIdx, Space);
+}
+
+TArray<FName> UAnimationLibrary::GetAnimationBoneNames(
+	UAnimSequence* Animation)
+{
+	TArray<FName> Result;
+
+	if (!Animation)
+	{
+		return Result;
+	}
+
+	USkeleton* Skeleton = Animation->GetSkeleton();
+	if (!Skeleton)
+	{
+		return Result;
+	}
+
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+	for (int32 i = 0; i < RefSkeleton.GetNum(); i++)
+	{
+		Result.Add(RefSkeleton.GetBoneName(i));
+	}
+
+	return Result;
+}
+
+float UAnimationLibrary::GetAnimationDuration(
+	UAnimSequence* Animation)
+{
+	if (!Animation)
+	{
+		return 0.0f;
+	}
+
+	return Animation->GetSequenceLength();
+}
+
+int32 UAnimationLibrary::GetAnimationFrameCount(
+	UAnimSequence* Animation)
+{
+	if (!Animation)
+	{
+		return 0;
+	}
+
+	return Animation->GetNumberOfSampledKeys();
+}

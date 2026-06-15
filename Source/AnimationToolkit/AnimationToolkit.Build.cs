@@ -35,7 +35,9 @@ public class AnimationToolkit : ModuleRules
 			"EditorStyle",
 			"LevelEditor",
 			"PropertyEditor",
-			"WorkspaceMenuStructure"
+			"WorkspaceMenuStructure",
+			"AutomationController",
+			"AutomationCommon"
 		});
 
 		if (Target.bBuildEditor)

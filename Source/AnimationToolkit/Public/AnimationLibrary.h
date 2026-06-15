@@ -343,4 +343,106 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Progress")
 	static void ClearGlobalProgressCallback();
+
+	// ─── GUIDE API ─────────────────────────────────────────────────
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Guide", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* CreateEmptyAnimation(
+		UObject* WorldContextObject,
+		USkeleton* Skeleton,
+		float Duration,
+		int32 FrameRate = 30
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Guide")
+	static bool AddBoneKeyframe(
+		UAnimSequence* Animation,
+		FName BoneName,
+		float Time,
+		FTransform Transform,
+		bool bUpdateExistingKey = true
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Guide")
+	static int32 AddKeyframesBatch(
+		UAnimSequence* Animation,
+		const TArray<FAnimationKeyframe>& Keyframes
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Guide")
+	static bool RemoveBoneKeyframe(
+		UAnimSequence* Animation,
+		FName BoneName,
+		float Time
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Guide")
+	static FTransform GetBoneTransformAtTime(
+		UAnimSequence* Animation,
+		FName BoneName,
+		float Time,
+		bool bExtractRootMotion = false
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Guide", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* RetargetSpeed(
+		UObject* WorldContextObject,
+		UAnimSequence* SourceAnimation,
+		float SpeedMultiplier
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Guide", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* CropAnimation(
+		UObject* WorldContextObject,
+		UAnimSequence* SourceAnimation,
+		float StartTime,
+		float EndTime
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Guide", meta = (WorldContext = "WorldContextObject"))
+	static bool ApplyRootOffset(
+		UAnimSequence* Animation,
+		FVector LocationOffset,
+		FRotator RotationOffset
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Guide")
+	static bool SaveAnimationAsAsset(
+		UAnimSequence* Animation,
+		const FString& PackagePath,
+		const FString& AssetName
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Guide")
+	static UAnimSequence* DuplicateAnimation(
+		UAnimSequence* SourceAnimation
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Guide")
+	static bool IsAnimationCompatibleWithSkeleton(
+		UAnimSequence* Animation,
+		USkeleton* Skeleton
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Guide")
+	static FTransform GetRuntimeBoneTransform(
+		USkeletalMeshComponent* SkelMesh,
+		FName BoneName,
+		EBoneSpaces::Type Space = EBoneSpaces::WorldSpace
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Guide")
+	static TArray<FName> GetAnimationBoneNames(
+		UAnimSequence* Animation
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Guide")
+	static float GetAnimationDuration(
+		UAnimSequence* Animation
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Guide")
+	static int32 GetAnimationFrameCount(
+		UAnimSequence* Animation
+	);
 };
