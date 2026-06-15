@@ -30,7 +30,12 @@ public class AnimationToolkit : ModuleRules
 			"Slate",
 			"RenderCore",
 			"RHI",
-			"Projects"
+			"Projects",
+			"ToolMenus",
+			"EditorStyle",
+			"LevelEditor",
+			"PropertyEditor",
+			"WorkspaceMenuStructure"
 		});
 
 		if (Target.bBuildEditor)

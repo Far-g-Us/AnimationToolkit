@@ -115,4 +115,232 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Utility")
 	static int32 GetAnimSequenceFrameCount(UAnimSequence* AnimSequence);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Curve")
+	static FAnimationCurveData CreateCurveData(
+		const FName& CurveName,
+		const TArray<FAnimationCurveKeyframe>& Keyframes
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Curve")
+	static FAnimationCurveKeyframe MakeCurveKeyframe(
+		float Time,
+		float Value
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Curve", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* CreateAnimationWithCurves(
+		UObject* WorldContextObject,
+		const FString& AnimationName,
+		USkeleton* Skeleton,
+		const TArray<FAnimationTrackData>& Tracks,
+		const TArray<FAnimationCurveData>& Curves,
+		float Duration,
+		float FrameRate
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Curve")
+	static bool AddCurveToAnimSequence(
+		UAnimSequence* AnimSequence,
+		const FAnimationCurveData& CurveData
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Batch", meta = (WorldContext = "WorldContextObject"))
+	static FAnimationBatchImportResult BatchImportAnimations(
+		UObject* WorldContextObject,
+		const TArray<FAnimationBatchImportItem>& Items,
+		USkeleton* Skeleton
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Batch", meta = (WorldContext = "WorldContextObject"))
+	static TArray<UAnimSequence*> BatchImportAsSequences(
+		UObject* WorldContextObject,
+		const TArray<FAnimationBatchImportItem>& Items,
+		USkeleton* Skeleton
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Retarget")
+	static FAnimationRetargetMapping MakeRetargetMapping(
+		const FName& SourceBone,
+		const FName& TargetBone
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Retarget")
+	static FAnimationRetargetSettings MakeRetargetSettings(
+		EAnimationRetargetType RetargetType,
+		const TArray<FAnimationRetargetMapping>& CustomMappings
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Retarget", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* RetargetAnimation(
+		UObject* WorldContextObject,
+		UAnimSequence* SourceAnimation,
+		USkeleton* TargetSkeleton,
+		const FAnimationRetargetSettings& Settings
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Retarget", meta = (WorldContext = "WorldContextObject"))
+	static TArray<UAnimSequence*> BatchRetargetAnimations(
+		UObject* WorldContextObject,
+		const TArray<UAnimSequence*>& SourceAnimations,
+		USkeleton* TargetSkeleton,
+		const FAnimationRetargetSettings& Settings
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Compression")
+	static FAnimationCompressionSettings MakeCompressionSettings(
+		bool bCompressTranslation,
+		bool bCompressRotation,
+		bool bCompressScale,
+		float TranslationThreshold,
+		float RotationThreshold,
+		float ScaleThreshold
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Compression")
+	static bool CompressAnimation(
+		UAnimSequence* AnimSequence,
+		const FAnimationCompressionSettings& Settings
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Compression")
+	static int32 BatchCompressAnimations(
+		const TArray<UAnimSequence*>& AnimSequences,
+		const FAnimationCompressionSettings& Settings
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Compression")
+	static float GetAnimationCompressionRatio(UAnimSequence* AnimSequence);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Compression")
+	static int32 GetAnimationKeyCount(UAnimSequence* AnimSequence);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Async", meta = (WorldContext = "WorldContextObject"))
+	static UAsyncImportHelper* StartAsyncImport(
+		UObject* WorldContextObject,
+		const FString& FilePath,
+		const FString& AnimationName,
+		USkeleton* Skeleton,
+		EAnimationImportFormat Format
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Blending", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* BlendAnimations(
+		UObject* WorldContextObject,
+		const FString& AnimationName,
+		USkeleton* Skeleton,
+		const TArray<UAnimSequence*>& Animations,
+		const TArray<float>& Weights
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Blending", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* CrossfadeAnimations(
+		UObject* WorldContextObject,
+		const FString& AnimationName,
+		USkeleton* Skeleton,
+		UAnimSequence* From,
+		UAnimSequence* To,
+		float CrossfadeDuration,
+		float FromEndTime = -1.0f,
+		float ToStartTime = 0.0f
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Mirror", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* MirrorAnimation(
+		UObject* WorldContextObject,
+		const FString& AnimationName,
+		USkeleton* Skeleton,
+		UAnimSequence* SourceAnimation,
+		EMirrorFlags MirrorFlags
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Mirror", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* MirrorAnimationXY(
+		UObject* WorldContextObject,
+		const FString& AnimationName,
+		USkeleton* Skeleton,
+		UAnimSequence* SourceAnimation,
+		bool bMirrorX,
+		bool bMirrorY
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Export")
+	static bool ExportAnimationFBX(
+		UAnimSequence* AnimSequence,
+		const FString& OutputPath
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Export")
+	static bool ExportAnimationBVH(
+		UAnimSequence* AnimSequence,
+		const FString& OutputPath,
+		const FString& CharacterName = TEXT("Character")
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Export")
+	static bool ExportAnimationglTF(
+		UAnimSequence* AnimSequence,
+		const FString& OutputPath
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Export")
+	static bool ExportAnimationCollada(
+		UAnimSequence* AnimSequence,
+		const FString& OutputPath
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Export")
+	static bool ExportAnimation(
+		UAnimSequence* AnimSequence,
+		const FString& OutputPath,
+		EAnimationImportFormat Format
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Tags")
+	static void SetAnimationTag(
+		UAnimSequence* AnimSequence,
+		const FName& Tag
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Tags")
+	static void SetAnimationTags(
+		UAnimSequence* AnimSequence,
+		const TArray<FName>& Tags
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Tags")
+	static void RemoveAnimationTag(
+		UAnimSequence* AnimSequence,
+		const FName& Tag
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Tags")
+	static bool HasAnimationTag(
+		UAnimSequence* AnimSequence,
+		const FName& Tag
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Tags")
+	static TArray<FName> GetAnimationTags(
+		UAnimSequence* AnimSequence
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Tags")
+	static TArray<UAnimSequence*> FindAnimationsByTag(
+		const TArray<UAnimSequence*>& Animations,
+		const FName& Tag
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Tags")
+	static void ClearAnimationTags(
+		UAnimSequence* AnimSequence
+	);
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAnimationProgress, float, Progress, const FString&, Message);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Progress")
+	static void SetGlobalProgressCallback(FOnAnimationProgress Callback);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Progress")
+	static void ClearGlobalProgressCallback();
 };
