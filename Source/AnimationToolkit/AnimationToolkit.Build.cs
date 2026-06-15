@@ -39,7 +39,6 @@ public class AnimationToolkit : ModuleRules
 			PrivateDependencyModuleNames.Add("AssetTools");
 		}
 
-		// Assimp ThirdParty integration
 		string AssimpPath = Path.Combine(ModuleDirectory, "..", "..", "ThirdParty", "Assimp");
 
 		if (Directory.Exists(AssimpPath))
@@ -50,44 +49,20 @@ public class AnimationToolkit : ModuleRules
 				PublicIncludePaths.Add(IncludePath);
 			}
 
-			string LibPath = Path.Combine(AssimpPath, "lib");
-			string PlatformPath = "";
-
-			if (Target.Platform == UnrealTargetPlatform.Win64)
+			string DllDir = Path.Combine(AssimpPath, "lib", "dll");
+			if (!Directory.Exists(DllDir))
 			{
-				PlatformPath = "Win64";
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Mac)
-			{
-				PlatformPath = "Mac";
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Linux)
-			{
-				PlatformPath = "Linux";
+				DllDir = Path.Combine(AssimpPath, "lib");
 			}
 
-			string ConfigPath = (Target.Configuration == UnrealTargets.Debug ||
-				Target.Configuration == UnrealTargets.DebugGame) ? "Debug" : "Release";
-
-			string FullLibPath = Path.Combine(LibPath, PlatformPath, ConfigPath);
-
-			if (Directory.Exists(FullLibPath))
+			if (Directory.Exists(DllDir))
 			{
-				string LibFile = Path.Combine(FullLibPath, "assimp-vc143-mt.lib");
-				if (File.Exists(LibFile))
+				string[] DllFiles = Directory.GetFiles(DllDir, "assimp*.dll");
+				foreach (string DllFile in DllFiles)
 				{
-					PublicAdditionalLibraries.Add(LibFile);
-				}
-			}
-
-			string DllPath = Path.Combine(LibPath, "dll");
-			if (Directory.Exists(DllPath) && Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				string DllFile = Path.Combine(DllPath, "assimp-vc143-mt.dll");
-				if (File.Exists(DllFile))
-				{
-					RuntimeDependencies.Add(DllFile);
-					PublicDelayLoadDLLs.Add("assimp-vc143-mt.dll");
+					RuntimeDependencies.Add(Path.GetFullPath(DllFile));
+					string DllName = Path.GetFileName(DllFile);
+					PublicDelayLoadDLLs.Add(DllName);
 				}
 			}
 

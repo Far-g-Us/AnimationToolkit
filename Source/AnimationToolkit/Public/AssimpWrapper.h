@@ -6,7 +6,7 @@
 #if HAS_ASSIMP
 
 #include <assimp/scene.h>
-#include <assimp/Importer.hpp>
+#include <assimp/cimport.h>
 #include <assimp/postprocess.h>
 
 class ANIMATIONTOOLKIT_API FAssimpWrapper
@@ -23,8 +23,6 @@ public:
 	bool HasAnimations() const;
 
 	const FString& GetErrorMessage() const { return ErrorMessage; }
-	const TArray<FString>& GetSupportedExtensions() const { return SupportedExtensions; }
-
 	static TArray<FString> GetAllSupportedExtensions();
 
 private:
@@ -32,11 +30,17 @@ private:
 	void ProcessAnimation(const aiAnimation* Animation, FAnimationClipData& OutClipData);
 	void ProcessAnimationChannel(const aiNodeAnim* Channel, FAnimationClipData& OutClipData);
 
-	Assimp::Importer* Importer;
+	void* DllHandle;
 	const aiScene* Scene;
 	FString ErrorMessage;
 
-	static TArray<FString> SupportedExtensions;
+	typedef const aiScene* (*aiImportFileFunc)(const char*, unsigned int);
+	typedef void (*aiReleaseImportFunc)(const aiScene*);
+	typedef const char* (*aiGetErrorStringFunc)();
+
+	aiImportFileFunc p_aiImportFile;
+	aiReleaseImportFunc p_aiReleaseImport;
+	aiGetErrorStringFunc p_aiGetErrorString;
 };
 
 #endif

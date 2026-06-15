@@ -2,28 +2,25 @@
 
 #if HAS_ASSIMP
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
 #include "Misc/Paths.h"
+#include "Misc/MessageDialog.h"
 
-TArray<FString> FAssimpWrapper::SupportedExtensions = {
-	TEXT("fbx"),
-	TEXT("gltf"),
-	TEXT("glb"),
-	TEXT("bvh"),
-	TEXT("obj"),
-	TEXT("dae"),
-	TEXT("3ds"),
-	TEXT("ply"),
-	TEXT("stl"),
-	TEXT("blend"),
-	TEXT("x3d")
-};
+#ifdef PLATFORM_WINDOWS
+#include <Windows.h>
+#endif
+
+TArray<FString> FAssimpWrapper::GetAllSupportedExtensions()
+{
+	return { TEXT("fbx"), TEXT("gltf"), TEXT("glb"), TEXT("bvh"), TEXT("obj"),
+		TEXT("dae"), TEXT("3ds"), TEXT("ply"), TEXT("stl"), TEXT("blend"), TEXT("x3d") };
+}
 
 FAssimpWrapper::FAssimpWrapper()
-	: Importer(nullptr)
+	: DllHandle(nullptr)
 	, Scene(nullptr)
+	, p_aiImportFile(nullptr)
+	, p_aiReleaseImport(nullptr)
+	, p_aiGetErrorString(nullptr)
 {
 }
 
@@ -34,37 +31,93 @@ FAssimpWrapper::~FAssimpWrapper()
 
 bool FAssimpWrapper::Initialize()
 {
-	if (Importer)
+	if (DllHandle)
 	{
 		return true;
 	}
 
-	Importer = new Assimp::Importer();
-	if (!Importer)
+	FString DllPath;
+
+	FString PluginDir = FPaths::GetPath(FPaths::GetModuleName());
+	FString CandidatePaths[] = {
+		FPaths::Combine(PluginDir, TEXT("../../ThirdParty/Assimp/lib/dll/assimp-vc143-mt.dll")),
+		FPaths::Combine(PluginDir, TEXT("../../ThirdParty/Assimp/lib/assimp-vc143-mt.dll")),
+		FPaths::Combine(PluginDir, TEXT("../../ThirdParty/Assimp/bin/assimp-vc143-mt.dll")),
+	};
+
+	for (const FString& Path : CandidatePaths)
 	{
-		ErrorMessage = TEXT("Failed to create Assimp Importer");
+		FString FullPath = FPaths::ConvertRelativePathToFull(Path);
+		if (FPaths::FileExists(FullPath))
+		{
+			DllPath = FullPath;
+			break;
+		}
+	}
+
+	if (DllPath.IsEmpty())
+	{
+		ErrorMessage = TEXT("assimp-vc143-mt.dll not found in ThirdParty/Assimp/");
+		UE_LOG(LogTemp, Error, TEXT("AssimpWrapper: %s"), *ErrorMessage);
 		return false;
 	}
 
+	DllHandle = FPlatformProcess::GetDllHandle(*DllPath);
+	if (!DllHandle)
+	{
+		ErrorMessage = FString::Printf(TEXT("Failed to load DLL: %s"), *DllPath);
+		UE_LOG(LogTemp, Error, TEXT("AssimpWrapper: %s"), *ErrorMessage);
+		return false;
+	}
+
+	p_aiImportFile = (aiImportFileFunc)FPlatformProcess::GetDllExport(DllHandle, TEXT("aiImportFile"));
+	p_aiReleaseImport = (aiReleaseImportFunc)FPlatformProcess::GetDllExport(DllHandle, TEXT("aiReleaseImport"));
+	p_aiGetErrorString = (aiGetErrorStringFunc)FPlatformProcess::GetDllExport(DllHandle, TEXT("aiGetErrorString"));
+
+	if (!p_aiImportFile || !p_aiReleaseImport || !p_aiGetErrorString)
+	{
+		ErrorMessage = TEXT("Failed to get DLL exports");
+		UE_LOG(LogTemp, Error, TEXT("AssimpWrapper: %s"), *ErrorMessage);
+		FPlatformProcess::FreeDllHandle(DllHandle);
+		DllHandle = nullptr;
+		return false;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Assimp DLL loaded successfully: %s"), *DllPath);
 	return true;
 }
 
 void FAssimpWrapper::Shutdown()
 {
-	if (Importer)
+	if (Scene && p_aiReleaseImport)
 	{
-		delete Importer;
-		Importer = nullptr;
+		p_aiReleaseImport(Scene);
+		Scene = nullptr;
 	}
-	Scene = nullptr;
+
+	if (DllHandle)
+	{
+		FPlatformProcess::FreeDllHandle(DllHandle);
+		DllHandle = nullptr;
+	}
+
+	p_aiImportFile = nullptr;
+	p_aiReleaseImport = nullptr;
+	p_aiGetErrorString = nullptr;
 }
 
 bool FAssimpWrapper::LoadFile(const FString& FilePath)
 {
-	if (!Importer)
+	if (!DllHandle || !p_aiImportFile)
 	{
-		ErrorMessage = TEXT("Assimp Importer not initialized");
+		ErrorMessage = TEXT("Assimp DLL not loaded");
 		return false;
+	}
+
+	if (Scene && p_aiReleaseImport)
+	{
+		p_aiReleaseImport(Scene);
+		Scene = nullptr;
 	}
 
 	std::string FilePathStd = TCHAR_TO_UTF8(*FilePath);
@@ -76,21 +129,25 @@ bool FAssimpWrapper::LoadFile(const FString& FilePath)
 		aiProcess_LimitBoneWeights |
 		aiProcess_ValidateDataStructure;
 
-	Scene = Importer->ReadFile(FilePathStd, Flags);
+	Scene = p_aiImportFile(FilePathStd.c_str(), Flags);
 
 	if (!Scene)
 	{
-		ErrorMessage = FString::Printf(TEXT("Failed to load file: %s. Error: %s"),
-			*FilePath, UTF8_TO_TCHAR(Importer->GetErrorString()));
+		const char* ErrorStr = p_aiGetErrorString();
+		ErrorMessage = FString::Printf(TEXT("Failed to load: %s. Error: %s"),
+			*FilePath, UTF8_TO_TCHAR(ErrorStr ? ErrorStr : "Unknown error"));
+		UE_LOG(LogTemp, Error, TEXT("AssimpWrapper: %s"), *ErrorMessage);
 		return false;
 	}
 
 	if (!Scene->HasAnimations())
 	{
 		ErrorMessage = TEXT("No animations found in file");
+		UE_LOG(LogTemp, Warning, TEXT("AssimpWrapper: %s"), *ErrorMessage);
 		return false;
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("Assimp loaded file: %s"), *FilePath);
 	return true;
 }
 
@@ -127,11 +184,6 @@ bool FAssimpWrapper::ParseAnimationData(FAnimationClipData& OutClipData)
 bool FAssimpWrapper::HasAnimations() const
 {
 	return Scene && Scene->HasAnimations();
-}
-
-TArray<FString> FAssimpWrapper::GetAllSupportedExtensions()
-{
-	return SupportedExtensions;
 }
 
 void FAssimpWrapper::ProcessNodeRecursive(const aiNode* Node, int32 ParentIndex, FAnimationClipData& OutClipData)
