@@ -133,7 +133,7 @@ struct FAnimationCurveKeyframe
 };
 
 USTRUCT(BlueprintType)
-struct FAnimationCurveData
+struct FATK_AnimationCurveData
 {
 	GENERATED_BODY()
 
@@ -257,6 +257,16 @@ enum class EMirrorFlags : uint8
 	YZ,
 	XYZ
 };
+
+inline EMirrorFlags operator|(EMirrorFlags A, EMirrorFlags B)
+{
+	return static_cast<EMirrorFlags>(static_cast<uint8>(A) | static_cast<uint8>(B));
+}
+
+inline EMirrorFlags operator&(EMirrorFlags A, EMirrorFlags B)
+{
+	return static_cast<EMirrorFlags>(static_cast<uint8>(A) & static_cast<uint8>(B));
+}
 
 USTRUCT(BlueprintType)
 struct FAnimationExportSettings

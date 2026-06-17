@@ -6,7 +6,7 @@
 #include "AnimationStateMachine.generated.h"
 
 UENUM(BlueprintType)
-enum class EAnimStateType : uint8
+enum class EATK_AnimStateType : uint8
 {
 	Idle,
 	Loop,
@@ -93,7 +93,7 @@ public:
 	FName GetCurrentAnimationName() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|StateMachine")
-	void AddState(UAnimSequence* Animation, EAnimStateType StateType = EAnimStateType::Loop);
+	void AddState(UAnimSequence* Animation, EATK_AnimStateType StateType = EATK_AnimStateType::Loop);
 
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|StateMachine")
 	void AddTransition(int32 FromState, int32 ToState, float Duration = 0.2f);

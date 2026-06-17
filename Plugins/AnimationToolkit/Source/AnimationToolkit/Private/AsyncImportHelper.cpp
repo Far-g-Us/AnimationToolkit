@@ -1,7 +1,7 @@
 #include "AsyncImportHelper.h"
 #include "AnimationImporter.h"
 #include "Animation/AnimSequence.h"
-#include "Engine/Skeleton.h"
+#include "Animation/Skeleton.h"
 #include "Async/Async.h"
 
 UAsyncImportHelper* UAsyncImportHelper::StartAsyncImport(

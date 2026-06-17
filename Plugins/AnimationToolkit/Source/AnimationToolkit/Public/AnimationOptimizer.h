@@ -97,7 +97,7 @@ private:
 };
 
 USTRUCT(BlueprintType)
-struct FAnimationLODSettings
+struct FAnimationLODDistanceSettings
 {
 	GENERATED_BODY()
 
@@ -133,20 +133,20 @@ public:
 	static UAnimationLODManager* GetLODManager();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|LOD")
-	void UpdateLOD(AActor* Actor, const FAnimationLODSettings& Settings);
+	void UpdateLOD(AActor* Actor, const FAnimationLODDistanceSettings& Settings);
 
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|LOD")
 	int32 GetCurrentLOD(AActor* Actor) const;
 
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|LOD")
-	FAnimationLODSettings GetSettingsForLOD(int32 LODLevel) const;
+	FAnimationLODDistanceSettings GetSettingsForLOD(int32 LODLevel) const;
 
 private:
 	UPROPERTY()
 	TMap<AActor*, int32> ActorLODs;
 
 	UPROPERTY()
-	FAnimationLODSettings DefaultSettings;
+	FAnimationLODDistanceSettings DefaultSettings;
 
 	static TWeakObjectPtr<UAnimationLODManager> Instance;
 };
@@ -230,10 +230,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|MemoryPool")
 	void InitializePool(int32 InitialSize = 1000);
 
-	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|MemoryPool")
 	FAnimationKeyframeData* AcquireKeyframe();
 
-	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|MemoryPool")
 	void ReleaseKeyframe(FAnimationKeyframeData* Keyframe);
 
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|MemoryPool")
@@ -255,10 +253,8 @@ public:
 	float GetMemoryUsageMB() const;
 
 private:
-	UPROPERTY()
 	TArray<FAnimationKeyframeData*> FreePool;
 
-	UPROPERTY()
 	TArray<FAnimationKeyframeData*> ActivePool;
 
 	UPROPERTY()
@@ -307,13 +303,13 @@ struct FAnimationBatchResult
 };
 
 UCLASS(BlueprintType, Blueprintable)
-class ANIMATIONTOOLKIT_API UAnimationBatchProcessor : public UObject
+class ANIMATIONTOOLKIT_API UATK_BatchProcessor : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|BatchProcessor")
-	static UAnimationBatchProcessor* GetBatchProcessor();
+	static UATK_BatchProcessor* GetBatchProcessor();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|BatchProcessor")
 	FAnimationBatchResult ProcessBatch(const TArray<FAnimationBatchItem>& Items);
@@ -346,5 +342,5 @@ private:
 	UPROPERTY()
 	int32 BatchCount = 0;
 
-	static TWeakObjectPtr<UAnimationBatchProcessor> Instance;
+	static TWeakObjectPtr<UATK_BatchProcessor> Instance;
 };

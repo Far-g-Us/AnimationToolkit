@@ -1,7 +1,7 @@
 #include "AnimationImporter.h"
 #include "AnimSequenceCreator.h"
 #include "Animation/AnimSequence.h"
-#include "Engine/Skeleton.h"
+#include "Animation/Skeleton.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Dom/JsonObject.h"

@@ -1,7 +1,7 @@
 #include "AnimationBlueprintGenerator.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimSequence.h"
-#include "Engine/Skeleton.h"
+#include "Animation/Skeleton.h"
 
 UAnimBlueprint* UAnimationBlueprintGenerator::GenerateSimpleBP(
 	UObject* WorldContextObject,

@@ -5,7 +5,7 @@
 #include "AnimationOptimizer.h"
 #include "CustomAnimNodes.h"
 
-BEGIN_DEFINE_SPEC(FAnimationToolkitSpec, "AnimationToolkit", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+BEGIN_DEFINE_SPEC(FAnimationToolkitSpec, "AnimationToolkit", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 END_DEFINE_SPEC(FAnimationToolkitSpec)
 
 void FAnimationToolkitSpec::Define()
@@ -73,7 +73,7 @@ void FAnimationToolkitSpec::Define()
 			Keyframes.Add(UAnimationLibrary::MakeCurveKeyframe(0.0f, 0.0f));
 			Keyframes.Add(UAnimationLibrary::MakeCurveKeyframe(1.0f, 1.0f));
 
-			FAnimationCurveData Curve = UAnimationLibrary::CreateCurveData("TestCurve", Keyframes);
+			FATK_AnimationCurveData Curve = UAnimationLibrary::CreateCurveData("TestCurve", Keyframes);
 			TestEqual("Curve name", Curve.CurveName, FName("TestCurve"));
 			TestEqual("Curve keyframes", Curve.Keyframes.Num(), 2);
 		});
@@ -321,13 +321,13 @@ void FAnimationToolkitSpec::Define()
 	{
 		It("should get batch processor instance", [this]()
 		{
-			UAnimationBatchProcessor* Processor = UAnimationBatchProcessor::GetBatchProcessor();
+			UATK_BatchProcessor* Processor = UATK_BatchProcessor::GetBatchProcessor();
 			TestNotNull("Batch processor is valid", Processor);
 		});
 
 		It("should process empty batch", [this]()
 		{
-			UAnimationBatchProcessor* Processor = UAnimationBatchProcessor::GetBatchProcessor();
+			UATK_BatchProcessor* Processor = UATK_BatchProcessor::GetBatchProcessor();
 			TArray<FAnimationBatchItem> Items;
 			FAnimationBatchResult Result = Processor->ProcessBatch(Items);
 			TestTrue("Empty batch succeeds", Result.bSuccess);
@@ -336,7 +336,7 @@ void FAnimationToolkitSpec::Define()
 
 		It("should track statistics", [this]()
 		{
-			UAnimationBatchProcessor* Processor = UAnimationBatchProcessor::GetBatchProcessor();
+			UATK_BatchProcessor* Processor = UATK_BatchProcessor::GetBatchProcessor();
 			int32 Total = Processor->GetTotalProcessed();
 			TestTrue("Total processed is non-negative", Total >= 0);
 		});
@@ -346,7 +346,7 @@ void FAnimationToolkitSpec::Define()
 	{
 		It("should create sequence player", [this]()
 		{
-			UAnimNode_SequencePlayer* Player = NewObject<UAnimNode_SequencePlayer>();
+			UATK_SimpleSequencePlayer* Player = NewObject<UATK_SimpleSequencePlayer>();
 			TestNotNull("Player is valid", Player);
 			TestFalse("Not playing initially", Player->IsPlaying());
 
@@ -432,8 +432,7 @@ void FAnimationToolkitSpec::Define()
 
 		It("should get default settings", [this]()
 		{
-			UAnimationLODManager* Manager = UAnimationLODManager::GetLODManager();
-			FAnimationLODSettings Settings = Manager->GetSettingsForLOD(0);
+			FAnimationLODDistanceSettings Settings;
 			TestTrue("Distance0 is positive", Settings.Distance0 > 0.0f);
 		});
 	});

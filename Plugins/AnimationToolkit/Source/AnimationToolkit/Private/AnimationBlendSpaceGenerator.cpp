@@ -1,7 +1,7 @@
 #include "AnimationBlendSpaceGenerator.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
-#include "Engine/Skeleton.h"
+#include "Animation/Skeleton.h"
 
 UBlendSpace* UAnimationBlendSpaceGenerator::GenerateBlendSpace1D(
 	UObject* WorldContextObject,
@@ -77,6 +77,7 @@ TArray<FBlendSpaceSample> UAnimationBlendSpaceGenerator::ArrangeSamplesInLine(
 void UAnimationBlendSpaceGenerator::BatchGenerateBlendSpaces(
 	UObject* WorldContextObject,
 	USkeleton* Skeleton,
-	const TArray<TArray<FBlendSpaceSample>>& SampleSets)
+	const TArray<FBlendSpaceSample>& AllSamples,
+	int32 SamplesPerBlendSpace)
 {
 }

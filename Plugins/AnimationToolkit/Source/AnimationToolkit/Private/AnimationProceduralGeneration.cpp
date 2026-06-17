@@ -1,6 +1,6 @@
 #include "AnimationProceduralGeneration.h"
 #include "Animation/AnimSequence.h"
-#include "Engine/Skeleton.h"
+#include "Animation/Skeleton.h"
 
 UAnimSequence* UAnimationProceduralGeneration::GenerateIdleAnimation(
 	UObject* WorldContextObject,

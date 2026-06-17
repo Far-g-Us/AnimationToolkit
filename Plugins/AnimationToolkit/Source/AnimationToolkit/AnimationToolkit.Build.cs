@@ -35,8 +35,7 @@ public class AnimationToolkit : ModuleRules
 			"LevelEditor",
 			"PropertyEditor",
 			"WorkspaceMenuStructure",
-			"AutomationController",
-			"AutomationCommon"
+			"AutomationController"
 		});
 
 		if (Target.bBuildEditor)
@@ -69,12 +68,9 @@ public class AnimationToolkit : ModuleRules
 					string FullPath = Path.GetFullPath(DllFile);
 					string DllName = Path.GetFileName(DllFile);
 
-					RuntimeDependencies.Add(FullPath);
+					RuntimeDependencies.Add("$(PluginDir)/ThirdParty/Assimp/lib/dll/" + DllName, StagedFileType.NonUFS);
 
 					PublicDelayLoadDLLs.Add(DllName);
-
-					string StagePath = "$(BinaryOutputDir)/" + DllName;
-					RuntimeDependencies.Add("$(PluginDir)/ThirdParty/Assimp/lib/dll/" + DllName, StagePath, StagedFileType.NonUFS);
 				}
 			}
 
@@ -100,11 +96,11 @@ public class AnimationToolkit : ModuleRules
 				}
 			}
 
-			Definitions.Add("HAS_ASSIMP=1");
+			PrivateDefinitions.Add("HAS_ASSIMP=1");
 		}
 		else
 		{
-			Definitions.Add("HAS_ASSIMP=0");
+			PrivateDefinitions.Add("HAS_ASSIMP=0");
 			System.Console.WriteLine("AnimationToolkit: Assimp not found at " + AssimpPath + ". 3D format import disabled.");
 		}
 	}

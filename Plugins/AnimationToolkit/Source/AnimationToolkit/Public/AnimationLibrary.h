@@ -117,7 +117,7 @@ public:
 	static int32 GetAnimSequenceFrameCount(UAnimSequence* AnimSequence);
 
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Curve")
-	static FAnimationCurveData CreateCurveData(
+	static FATK_AnimationCurveData CreateCurveData(
 		const FName& CurveName,
 		const TArray<FAnimationCurveKeyframe>& Keyframes
 	);
@@ -134,7 +134,7 @@ public:
 		const FString& AnimationName,
 		USkeleton* Skeleton,
 		const TArray<FAnimationTrackData>& Tracks,
-		const TArray<FAnimationCurveData>& Curves,
+		const TArray<FATK_AnimationCurveData>& Curves,
 		float Duration,
 		float FrameRate
 	);
@@ -142,7 +142,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Curve")
 	static bool AddCurveToAnimSequence(
 		UAnimSequence* AnimSequence,
-		const FAnimationCurveData& CurveData
+		const FATK_AnimationCurveData& CurveData
 	);
 
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Batch", meta = (WorldContext = "WorldContextObject"))
@@ -336,12 +336,7 @@ public:
 		UAnimSequence* AnimSequence
 	);
 
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAnimationProgress, float, Progress, const FString&, Message);
-
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Progress")
-	static void SetGlobalProgressCallback(FOnAnimationProgress Callback);
-
-	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Progress")
 	static void ClearGlobalProgressCallback();
 
 	// ─── GUIDE API ─────────────────────────────────────────────────

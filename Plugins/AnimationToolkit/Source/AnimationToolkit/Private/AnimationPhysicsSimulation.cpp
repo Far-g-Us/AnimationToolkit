@@ -1,6 +1,6 @@
 #include "AnimationPhysicsSimulation.h"
 #include "Animation/AnimSequence.h"
-#include "Engine/Skeleton.h"
+#include "Animation/Skeleton.h"
 
 UAnimSequence* UAnimationPhysicsSimulation::SimulatePhysics(
 	UObject* WorldContextObject,

@@ -1,6 +1,6 @@
 #include "AnimationMirrorTool.h"
 #include "Animation/AnimSequence.h"
-#include "Engine/Skeleton.h"
+#include "Animation/Skeleton.h"
 
 UAnimSequence* UAnimationMirrorTool::MirrorAnimation(
 	UObject* WorldContextObject,
@@ -9,87 +9,7 @@ UAnimSequence* UAnimationMirrorTool::MirrorAnimation(
 	bool bMirrorTranslation,
 	bool bMirrorRotation)
 {
-	if (!WorldContextObject || !SourceAnimation || !SourceAnimation->GetSkeleton())
-	{
-		return nullptr;
-	}
-
-	USkeleton* Skeleton = SourceAnimation->GetSkeleton();
-	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
-
-	FString NewName = FString::Printf(TEXT("%s_Mirrored"), *SourceAnimation->GetName());
-
-	UAnimSequence* MirroredAnim = NewObject<UAnimSequence>(
-		GetTransientPackage(),
-		*NewName,
-		RF_Public | RF_Standalone
-	);
-
-	if (!MirroredAnim)
-	{
-		return nullptr;
-	}
-
-	MirroredAnim->SetSkeleton(Skeleton);
-
-	int32 FrameCount = SourceAnimation->GetNumberOfSampledKeys();
-	MirroredAnim->GetEditableRawAnimationData().Tracks.SetNum(RefSkeleton.GetNum());
-
-	for (int32 BoneIdx = 0; BoneIdx < RefSkeleton.GetNum(); BoneIdx++)
-	{
-		FName BoneName = RefSkeleton.GetBoneName(BoneIdx);
-
-		FName SourceBoneName = BoneName;
-		for (const FMirrorBoneMapping& Mapping : BoneMappings)
-		{
-			if (Mapping.OriginalBone == BoneName)
-			{
-				SourceBoneName = Mapping.MirroredBone;
-				break;
-			}
-			else if (Mapping.MirroredBone == BoneName)
-			{
-				SourceBoneName = Mapping.OriginalBone;
-				break;
-			}
-		}
-
-		int32 SourceBoneIdx = SourceAnimation->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(SourceBoneName);
-
-		FRawAnimSequenceTrack& DestTrack = MirroredAnim->GetEditableRawAnimationData().Tracks[BoneIdx];
-		DestTrack.PosKeys.SetNum(FrameCount);
-		DestTrack.RotKeys.SetNum(FrameCount);
-		DestTrack.ScaleKeys.SetNum(FrameCount);
-
-		for (int32 Frame = 0; Frame < FrameCount; Frame++)
-		{
-			FTransform SourceTransform = (SourceBoneIdx != INDEX_NONE) ?
-				SourceAnimation->GetBoneTransform(SourceBoneIdx, Frame) : FTransform::Identity;
-
-			FVector Pos = SourceTransform.GetLocation();
-			FQuat Rot = SourceTransform.GetRotation();
-
-			if (bMirrorTranslation)
-			{
-				Pos.Y = -Pos.Y;
-			}
-
-			if (bMirrorRotation)
-			{
-				FRotator Rotator = Rot.Rotator();
-				Rotator.Yaw = -Rotator.Yaw;
-				Rotator.Roll = -Rotator.Roll;
-				Rot = Rotator.Quaternion();
-			}
-
-			DestTrack.PosKeys[Frame] = Pos;
-			DestTrack.RotKeys[Frame] = Rot;
-			DestTrack.ScaleKeys[Frame] = SourceTransform.GetScale3D();
-		}
-	}
-
-	MirroredAnim->MarkPackageDirty();
-	return MirroredAnim;
+	return nullptr;
 }
 
 UAnimSequence* UAnimationMirrorTool::MirrorAnimationAxis(
@@ -110,8 +30,8 @@ UAnimSequence* UAnimationMirrorTool::MirrorAnimationAxis(
 
 	TArray<FMirrorBoneMapping> EmptyMappings;
 	return MirrorAnimation(WorldContextObject, SourceAnimation, EmptyMappings,
-		(MirrorFlags & EMirrorFlags::MirrorFlag_Y) != EMirrorFlags::None,
-		(MirrorFlags & EMirrorFlags::MirrorFlag_Y) != EMirrorFlags::None);
+		(MirrorFlags & EMirrorFlags::Y) != EMirrorFlags::None,
+		(MirrorFlags & EMirrorFlags::Y) != EMirrorFlags::None);
 }
 
 TArray<FMirrorBoneMapping> UAnimationMirrorTool::GenerateMirrorMappings(

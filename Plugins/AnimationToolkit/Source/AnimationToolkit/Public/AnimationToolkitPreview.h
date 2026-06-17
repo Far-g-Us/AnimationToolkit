@@ -5,7 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/SButton.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -19,6 +19,8 @@
 
 class UAnimSequence;
 class USkeletalMeshComponent;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAnimationProgress, float, Progress);
 
 UCLASS(BlueprintType)
 class ANIMATIONTOOLKIT_API UAnimationPreviewManager : public UObject

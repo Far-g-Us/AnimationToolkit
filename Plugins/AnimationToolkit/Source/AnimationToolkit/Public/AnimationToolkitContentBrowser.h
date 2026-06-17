@@ -31,11 +31,13 @@ public:
 	virtual UClass* GetSupportedClass() const override;
 	virtual uint32 GetCategories() override;
 	virtual void GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section) override;
-	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor) override;
-
+	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, const EAssetTypeActivationOpenedMethod OpenedMethod, TSharedPtr<IToolkitHost> EditWithinLevelEditor) override;
+	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) override;
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
-	virtual bool CanMerge(const UObject* InObject) const override;
-	virtual void Merge(const UObject* ObjectA, const UObject* ObjectB, const FString& TargetName) override;
+	virtual bool CanRename(const FAssetData& AssetData, FText* OutErrorMsg) const override;
+	virtual bool CanDuplicate(const FAssetData& AssetData, FText* OutErrorMsg) const override;
+	virtual TArray<FAssetData> GetValidAssetsForPreviewOrEdit(TArrayView<const FAssetData> InAssetDataList, bool bAllowHiddenAssets) override;
+	virtual bool CanFilter() override;
 };
 
 UCLASS()

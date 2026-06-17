@@ -1,6 +1,6 @@
 #include "AnimationCurveEditor.h"
 #include "Animation/AnimSequence.h"
-#include "Engine/Skeleton.h"
+#include "Animation/Skeleton.h"
 
 UAnimSequence* UAnimationCurveEditor::AddCurveToAnimation(
 	UObject* WorldContextObject,
@@ -115,7 +115,7 @@ float UAnimationCurveEditor::GetCurveDuration(
 		return 0.0f;
 	}
 
-	return Animation->GetSequenceLength();
+	return Animation->GetPlayLength();
 }
 
 UAnimSequence* UAnimationCurveEditor::RenameCurve(

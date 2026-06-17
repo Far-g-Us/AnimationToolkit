@@ -1,6 +1,6 @@
 #include "AnimationBatchProcessor.h"
 #include "Animation/AnimSequence.h"
-#include "Engine/Skeleton.h"
+#include "Animation/Skeleton.h"
 
 static int32 GBatchProgress = 0;
 static FString GBatchStatus = TEXT("Idle");

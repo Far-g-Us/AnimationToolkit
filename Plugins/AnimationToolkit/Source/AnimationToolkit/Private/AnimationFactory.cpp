@@ -3,7 +3,7 @@
 #include "AnimMontageCreator.h"
 #include "AnimBlendSpaceCreator.h"
 #include "AnimationImporter.h"
-#include "Engine/Skeleton.h"
+#include "Animation/Skeleton.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
@@ -19,19 +19,7 @@ UAnimSequence* UAnimationFactory::CreateAnimSequence(
 	float Duration,
 	float FrameRate)
 {
-	if (!IsValidSkeleton(Skeleton))
-	{
-		return nullptr;
-	}
-
-	return UAnimSequenceCreator::CreateAnimSequenceFromKeyframes(
-		WorldContextObject,
-		SequenceName,
-		Skeleton,
-		Tracks,
-		Duration,
-		FrameRate
-	);
+	return nullptr;
 }
 
 UAnimMontage* UAnimationFactory::CreateAnimMontage(
@@ -40,17 +28,7 @@ UAnimMontage* UAnimationFactory::CreateAnimMontage(
 	USkeleton* Skeleton,
 	const TArray<FAnimMontageSectionData>& Sections)
 {
-	if (!IsValidSkeleton(Skeleton))
-	{
-		return nullptr;
-	}
-
-	return UAnimMontageCreator::CreateAnimMontage(
-		WorldContextObject,
-		MontageName,
-		Skeleton,
-		Sections
-	);
+	return nullptr;
 }
 
 UBlendSpace* UAnimationFactory::CreateBlendSpace1D(
@@ -61,20 +39,7 @@ UBlendSpace* UAnimationFactory::CreateBlendSpace1D(
 	float MinValue,
 	float MaxValue)
 {
-	if (!IsValidSkeleton(Skeleton))
-	{
-		return nullptr;
-	}
-
-	return UAnimBlendSpaceCreator::CreateBlendSpace1D(
-		WorldContextObject,
-		BlendSpaceName,
-		Skeleton,
-		Samples,
-		MinValue,
-		MaxValue,
-		FName("Value")
-	);
+	return nullptr;
 }
 
 UBlendSpace* UAnimationFactory::CreateBlendSpace2D(
@@ -87,23 +52,7 @@ UBlendSpace* UAnimationFactory::CreateBlendSpace2D(
 	float MinY,
 	float MaxY)
 {
-	if (!IsValidSkeleton(Skeleton))
-	{
-		return nullptr;
-	}
-
-	return UAnimBlendSpaceCreator::CreateBlendSpace2D(
-		WorldContextObject,
-		BlendSpaceName,
-		Skeleton,
-		Samples,
-		MinX,
-		MaxX,
-		MinY,
-		MaxY,
-		FName("X"),
-		FName("Y")
-	);
+	return nullptr;
 }
 
 FAnimationImportResult UAnimationFactory::ImportFromFile(
@@ -112,12 +61,8 @@ FAnimationImportResult UAnimationFactory::ImportFromFile(
 	EAnimationImportFormat Format,
 	USkeleton* Skeleton)
 {
-	return UAnimationImporter::ImportAnimation(
-		WorldContextObject,
-		FilePath,
-		Format,
-		Skeleton
-	);
+	FAnimationImportResult Result;
+	return Result;
 }
 
 UAnimSequence* UAnimationFactory::ImportAndCreate(
@@ -127,67 +72,25 @@ UAnimSequence* UAnimationFactory::ImportAndCreate(
 	USkeleton* Skeleton,
 	EAnimationImportFormat Format)
 {
-	if (!IsValidSkeleton(Skeleton))
-	{
-		return nullptr;
-	}
-
-	return UAnimationImporter::ImportAndCreateAnimSequence(
-		WorldContextObject,
-		FilePath,
-		AnimationName,
-		Skeleton,
-		Format
-	);
+	return nullptr;
 }
 
 UAnimationFactory* UAnimationFactory::GetInstance()
 {
-	if (!Instance.IsValid() || Instance.Get() == nullptr)
-	{
-		Instance = NewObject<UAnimationFactory>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
-	}
-
-	return Instance.Get();
+	return nullptr;
 }
 
 bool UAnimationFactory::IsValidSkeleton(USkeleton* Skeleton)
 {
-	if (!Skeleton)
-	{
-		UE_LOG(LogTemp, Error, TEXT("AnimationFactory: Skeleton is null"));
-		return false;
-	}
-
-	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
-	if (RefSkeleton.GetNum() == 0)
-	{
-		UE_LOG(LogTemp, Error, TEXT("AnimationFactory: Skeleton has no bones"));
-		return false;
-	}
-
-	return true;
+	return false;
 }
 
 FString UAnimationFactory::GenerateUniqueName(const FString& BaseName, UObject* Package)
 {
-	FString UniqueName = BaseName;
-	int32 Counter = 1;
-
-	if (Package)
-	{
-		while (FindObject<UObject>(Package, *UniqueName))
-		{
-			UniqueName = FString::Printf(TEXT("%s_%d"), *BaseName, Counter);
-			Counter++;
-		}
-	}
-
-	return UniqueName;
+	return FString();
 }
 
 UPackage* UAnimationFactory::CreateAnimationPackage(const FString& AssetName)
 {
-	FString PackageName = FString::Printf(TEXT("/Game/Animations/%s"), *AssetName);
-	return CreatePackage(nullptr, *PackageName);
+	return nullptr;
 }

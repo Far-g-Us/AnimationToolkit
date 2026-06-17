@@ -80,12 +80,11 @@ public:
 		EBoneMappingMethod Method = EBoneMappingMethod::AllMethods
 	);
 
-	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
 	static FName FindBestMatch(
 		const FName& SourceBoneName,
 		USkeleton* TargetSkeleton,
 		EBoneMappingMethod Method = EBoneMappingMethod::AllMethods,
-		float& OutConfidence
+		float* OutConfidence = nullptr
 	);
 
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
@@ -131,12 +130,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
 	static float CalculateMappingConfidence(const FBoneMappingResult& Result);
 
-	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Bone Mapping")
 	static UAnimSequence* AutoRemapAnimation(
 		UAnimSequence* SourceAnimation,
 		USkeleton* TargetSkeleton,
 		EBoneMappingMethod Method = EBoneMappingMethod::AllMethods,
-		FBoneMappingResult& OutMapping
+		FBoneMappingResult* OutMapping = nullptr
 	);
 
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")

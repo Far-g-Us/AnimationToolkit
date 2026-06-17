@@ -59,5 +59,6 @@ public:
 	static void BatchGenerateBlendSpaces(
 		UObject* WorldContextObject,
 		USkeleton* Skeleton,
-		const TArray<TArray<FBlendSpaceSample>>& SampleSets);
+		const TArray<FBlendSpaceSample>& AllSamples,
+		int32 SamplesPerBlendSpace);
 };

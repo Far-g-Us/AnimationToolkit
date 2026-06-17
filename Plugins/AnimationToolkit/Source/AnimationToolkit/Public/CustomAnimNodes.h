@@ -8,7 +8,7 @@
 #include "CustomAnimNodes.generated.h"
 
 UCLASS(BlueprintType, Blueprintable)
-class ANIMATIONTOOLKIT_API UAnimNode_SequencePlayer : public UAnimInstance
+class ANIMATIONTOOLKIT_API UATK_SimpleSequencePlayer : public UAnimInstance
 {
 	GENERATED_BODY()
 

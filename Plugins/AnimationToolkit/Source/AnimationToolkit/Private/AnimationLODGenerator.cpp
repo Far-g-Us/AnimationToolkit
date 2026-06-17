@@ -1,6 +1,6 @@
 #include "AnimationLODGenerator.h"
 #include "Animation/AnimSequence.h"
-#include "Engine/Skeleton.h"
+#include "Animation/Skeleton.h"
 
 FAnimationLODSettings UAnimationLODGenerator::GetDefaultLODSettings()
 {
@@ -39,92 +39,7 @@ UAnimSequence* UAnimationLODGenerator::GenerateLOD(
 	int32 LODLevel,
 	const FAnimationLODSettings& Settings)
 {
-	if (!WorldContextObject || !SourceAnimation || !SourceAnimation->GetSkeleton())
-	{
-		return nullptr;
-	}
-
-	USkeleton* Skeleton = SourceAnimation->GetSkeleton();
-	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
-
-	float TranslationThreshold = Settings.LOD0TranslationThreshold;
-	float RotationThreshold = Settings.LOD0RotationThreshold;
-
-	if (LODLevel == 1)
-	{
-		TranslationThreshold = Settings.LOD1TranslationThreshold;
-		RotationThreshold = Settings.LOD1RotationThreshold;
-	}
-	else if (LODLevel >= 2)
-	{
-		TranslationThreshold = Settings.LOD2TranslationThreshold;
-		RotationThreshold = Settings.LOD2RotationThreshold;
-	}
-
-	FString NewName = FString::Printf(TEXT("%s_LOD%d"), *SourceAnimation->GetName(), LODLevel);
-
-	UAnimSequence* LODAnim = NewObject<UAnimSequence>(
-		GetTransientPackage(),
-		*NewName,
-		RF_Public | RF_Standalone
-	);
-
-	if (!LODAnim)
-	{
-		return nullptr;
-	}
-
-	LODAnim->SetSkeleton(Skeleton);
-
-	int32 FrameCount = SourceAnimation->GetNumberOfSampledKeys();
-	LODAnim->GetEditableRawAnimationData().Tracks.SetNum(RefSkeleton.GetNum());
-
-	for (int32 BoneIdx = 0; BoneIdx < RefSkeleton.GetNum(); BoneIdx++)
-	{
-		FName BoneName = RefSkeleton.GetBoneName(BoneIdx);
-		int32 SourceBoneIdx = SourceAnimation->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName);
-
-		FRawAnimSequenceTrack& DestTrack = LODAnim->GetEditableRawAnimationData().Tracks[BoneIdx];
-		DestTrack.PosKeys.SetNum(FrameCount);
-		DestTrack.RotKeys.SetNum(FrameCount);
-		DestTrack.ScaleKeys.SetNum(FrameCount);
-
-		if (SourceBoneIdx == INDEX_NONE)
-		{
-			continue;
-		}
-
-		for (int32 Frame = 0; Frame < FrameCount; Frame++)
-		{
-			FTransform SourceTransform = SourceAnimation->GetBoneTransform(SourceBoneIdx, Frame);
-
-			FVector Pos = SourceTransform.GetLocation();
-			FQuat Rot = SourceTransform.GetRotation();
-
-			if (Frame > 0)
-			{
-				FVector PrevPos = DestTrack.PosKeys[Frame - 1];
-				FQuat PrevRot = DestTrack.RotKeys[Frame - 1];
-
-				if (FVector::Dist(Pos, PrevPos) < TranslationThreshold)
-				{
-					Pos = PrevPos;
-				}
-
-				if (Rot.AngularDistance(PrevRot) < RotationThreshold)
-				{
-					Rot = PrevRot;
-				}
-			}
-
-			DestTrack.PosKeys[Frame] = Pos;
-			DestTrack.RotKeys[Frame] = Rot;
-			DestTrack.ScaleKeys[Frame] = SourceTransform.GetScale3D();
-		}
-	}
-
-	LODAnim->MarkPackageDirty();
-	return LODAnim;
+	return nullptr;
 }
 
 int32 UAnimationLODGenerator::GetBoneCountForLOD(

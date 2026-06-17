@@ -17,7 +17,7 @@ float UAnimationMotionMatching::CalculatePoseCost(
 	float Cost = 0.0f;
 
 	Cost += FVector::Dist(PoseA.Position, PoseB.Position);
-	Cost += PoseA.Rotation.AngularDistance(PoseB.Rotation);
+	Cost += FQuat(PoseA.Rotation).AngularDistance(FQuat(PoseB.Rotation));
 
 	return Cost;
 }

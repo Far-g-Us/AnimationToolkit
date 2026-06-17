@@ -12,32 +12,29 @@ class ANIMATIONTOOLKIT_API UAnimationRepairTool : public UObject
 
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Repair", meta = (WorldContext = "WorldContextObject"))
 	static UAnimSequence* RepairAnimationMissingBones(
 		UObject* WorldContextObject,
 		UAnimSequence* BrokenAnimation,
 		USkeleton* TargetSkeleton,
-		FAnimationRepairResult& OutResult);
+		FAnimationRepairResult* OutResult = nullptr);
 
-	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Repair", meta = (WorldContext = "WorldContextObject"))
 	static UAnimSequence* ReassignAnimationSkeleton(
 		UObject* WorldContextObject,
 		UAnimSequence* SourceAnimation,
 		USkeleton* NewSkeleton,
 		bool bAutoRemap = true,
-		FAnimationRepairResult& OutResult);
+		FAnimationRepairResult* OutResult = nullptr);
 
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Repair")
 	static FAnimationRepairResult AnalyzeAnimationBones(
 		UAnimSequence* Animation,
 		USkeleton* ExpectedSkeleton);
 
-	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Repair", meta = (WorldContext = "WorldContextObject"))
 	static TArray<UAnimSequence*> BatchRepairAnimations(
 		UObject* WorldContextObject,
 		const TArray<UAnimSequence*>& BrokenAnimations,
 		USkeleton* TargetSkeleton,
-		FAnimationRepairResult& OutResult);
+		FAnimationRepairResult* OutResult = nullptr);
 
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Repair")
 	static bool IsAnimationBroken(UAnimSequence* Animation);

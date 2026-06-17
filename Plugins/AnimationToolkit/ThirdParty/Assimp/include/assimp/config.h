@@ -1,0 +1,9 @@
+#pragma once
+
+#ifndef ASSIMP_BUILD_NO_EXPORT
+#define ASSIMP_BUILD_NO_EXPORT
+#endif
+
+#ifndef ASSIMP_BUILD_NO_BASE_IMPORTER
+#define ASSIMP_BUILD_NO_BASE_IMPORTER
+#endif

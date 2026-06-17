@@ -38,7 +38,7 @@ bool FAssimpWrapper::Initialize()
 
 	FString DllPath;
 
-	FString PluginDir = FPaths::GetPath(FPaths::GetModuleName());
+	FString PluginDir = FPaths::Combine(FPaths::ProjectDir(), TEXT("Plugins/AnimationToolkit"));
 	FString CandidatePaths[] = {
 		FPaths::Combine(PluginDir, TEXT("../../ThirdParty/Assimp/lib/dll/assimp-vc143-mt.dll")),
 		FPaths::Combine(PluginDir, TEXT("../../ThirdParty/Assimp/lib/assimp-vc143-mt.dll")),

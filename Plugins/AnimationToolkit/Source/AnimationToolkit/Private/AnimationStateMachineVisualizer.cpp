@@ -98,8 +98,8 @@ FLinearColor UAnimationStateMachineVisualizer::GetNodeColor(int32 NodeIndex)
 		FLinearColor::Green,
 		FLinearColor::Blue,
 		FLinearColor::Yellow,
-		FLinearColor::Cyan,
-		FLinearColor::Magenta
+		FLinearColor(0.f, 1.f, 1.f),
+		FLinearColor(1.f, 0.f, 1.f)
 	};
 
 	return Colors[NodeIndex % Colors.Num()];

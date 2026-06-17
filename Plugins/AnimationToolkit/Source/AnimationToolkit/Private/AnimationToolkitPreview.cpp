@@ -60,7 +60,7 @@ float UAnimationPreviewManager::GetAnimationDuration() const
 {
 	if (CurrentAnimation)
 	{
-		return CurrentAnimation->GetSequenceLength();
+		return CurrentAnimation->GetPlayLength();
 	}
 	return 0.0f;
 }
