@@ -66,9 +66,37 @@ public class AnimationToolkit : ModuleRules
 				string[] DllFiles = Directory.GetFiles(DllDir, "assimp*.dll");
 				foreach (string DllFile in DllFiles)
 				{
-					RuntimeDependencies.Add(Path.GetFullPath(DllFile));
+					string FullPath = Path.GetFullPath(DllFile);
 					string DllName = Path.GetFileName(DllFile);
+
+					RuntimeDependencies.Add(FullPath);
+
 					PublicDelayLoadDLLs.Add(DllName);
+
+					string StagePath = "$(BinaryOutputDir)/" + DllName;
+					RuntimeDependencies.Add("$(PluginDir)/ThirdParty/Assimp/lib/dll/" + DllName, StagePath, StagedFileType.NonUFS);
+				}
+			}
+
+			string LibDir = Path.Combine(AssimpPath, "lib");
+			if (Directory.Exists(LibDir))
+			{
+				string PlatformDir = Target.Platform == UnrealTargetPlatform.Win64 ? "Win64" : "Win32";
+				string ConfigName = Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release";
+				string LibSubDir = Path.Combine(LibDir, PlatformDir, ConfigName);
+
+				if (!Directory.Exists(LibSubDir))
+				{
+					LibSubDir = Path.Combine(LibDir, PlatformDir);
+				}
+
+				if (Directory.Exists(LibSubDir))
+				{
+					string[] LibFiles = Directory.GetFiles(LibSubDir, "assimp*.lib");
+					foreach (string LibFile in LibFiles)
+					{
+						PublicAdditionalLibraries.Add(Path.GetFullPath(LibFile));
+					}
 				}
 			}
 

@@ -43,6 +43,8 @@ bool FAssimpWrapper::Initialize()
 		FPaths::Combine(PluginDir, TEXT("../../ThirdParty/Assimp/lib/dll/assimp-vc143-mt.dll")),
 		FPaths::Combine(PluginDir, TEXT("../../ThirdParty/Assimp/lib/assimp-vc143-mt.dll")),
 		FPaths::Combine(PluginDir, TEXT("../../ThirdParty/Assimp/bin/assimp-vc143-mt.dll")),
+		FPaths::Combine(FPaths::ProjectDir(), TEXT("Binaries/Win64/assimp-vc143-mt.dll")),
+		FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/assimp-vc143-mt.dll")),
 	};
 
 	for (const FString& Path : CandidatePaths)
@@ -57,7 +59,7 @@ bool FAssimpWrapper::Initialize()
 
 	if (DllPath.IsEmpty())
 	{
-		ErrorMessage = TEXT("assimp-vc143-mt.dll not found in ThirdParty/Assimp/");
+		ErrorMessage = TEXT("assimp-vc143-mt.dll not found in ThirdParty/Assimp/ or Binaries/");
 		UE_LOG(LogTemp, Error, TEXT("AssimpWrapper: %s"), *ErrorMessage);
 		return false;
 	}

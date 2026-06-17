@@ -22,7 +22,7 @@ Look for: `assimp-5.4.3-win64.zip` (or latest version)
 
 ### Option 2: Build from source
 
-```
+```bash
 git clone https://github.com/assimp/assimp.git
 cd assimp
 cmake -S . -B build -DBUILD_SHARED_LIBS=ON
@@ -46,14 +46,13 @@ ThirdParty/Assimp/
 │       ├── postprocess.h
 │       └── ... (all headers from include/assimp/)
 ├── lib/
-│   ├── Win64/
-│   │   ├── Release/
-│   │   │   └── assimp-vc143-mt.lib
-│   │   └── Debug/
-│   │       └── assimp-vc143-mtd.lib
-│   └── dll/
-│       ├── assimp-vc143-mt.dll
-│       └── assimp-vc143-mtd.dll
+│   ├── dll/
+│   │   └── assimp-vc143-mt.dll
+│   └── Win64/
+│       ├── Release/
+│       │   └── assimp-vc143-mt.lib
+│       └── Debug/
+│           └── assimp-vc143-mtd.lib
 ```
 
 ### If building from source:
@@ -84,7 +83,7 @@ ThirdParty/Assimp/
 
 1. Make sure the `ThirdParty/Assimp/` directory exists
 2. Check that headers are in `include/assimp/`
-3. Check that libraries are in `lib/Win64/Release/` or `lib/Win64/Debug/`
+3. Check that DLL is in `lib/dll/`
 
 ### Linker errors
 
@@ -95,7 +94,14 @@ ThirdParty/Assimp/
 ### DLL not found at runtime
 
 1. Make sure `assimp-vc143-mt.dll` is in `lib/dll/`
-2. The DLL will be automatically copied to the binary output directory
+2. For packaged builds, the DLL is automatically copied to `Binaries/Win64/`
+3. The DLL will be automatically loaded at runtime
+
+## Packaging for Distribution
+
+The plugin automatically handles DLL distribution:
+- For Editor: DLL is loaded from ThirdParty directory
+- For Packaged Builds: DLL is copied to Binaries directory
 
 ## License
 
