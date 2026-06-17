@@ -386,6 +386,9 @@ UAnimSequence* UAnimationLibrary::RetargetAnimation(
 	const FReferenceSkeleton& SourceRefSkeleton = SourceSkeleton->GetReferenceSkeleton();
 	const FReferenceSkeleton& TargetRefSkeleton = TargetSkeleton->GetReferenceSkeleton();
 
+	int32 SourceFrameCount = SourceAnimation->GetNumberOfSampledKeys();
+	float Duration = SourceAnimation->GetSequenceLength();
+
 	TArray<FAnimationTrackData> RetargetedTracks;
 
 	for (int32 i = 0; i < SourceRefSkeleton.GetNum(); i++)
@@ -394,11 +397,8 @@ UAnimSequence* UAnimationLibrary::RetargetAnimation(
 
 		FName TargetBoneName = NAME_None;
 
-		if (Settings.RetargetType == EAnimationRetargetType::OneToOne)
-		{
-			TargetBoneName = SourceBoneName;
-		}
-		else if (Settings.RetargetType == EAnimationRetargetType::ByName)
+		if (Settings.RetargetType == EAnimationRetargetType::OneToOne ||
+			Settings.RetargetType == EAnimationRetargetType::ByName)
 		{
 			TargetBoneName = SourceBoneName;
 		}
@@ -427,10 +427,15 @@ UAnimSequence* UAnimationLibrary::RetargetAnimation(
 				FAnimationTrackData Track;
 				Track.TrackName = TargetBoneName;
 
-				FAnimationKeyframe Keyframe;
-				Keyframe.Time = 0.0f;
-				Keyframe.Transform = SourceRefSkeleton.GetBoneTransform(i);
-				Track.Keyframes.Add(Keyframe);
+				for (int32 Frame = 0; Frame < SourceFrameCount; Frame++)
+				{
+					float Time = (SourceFrameCount > 1) ? (float)Frame / (SourceFrameCount - 1) * Duration : 0.0f;
+
+					FAnimationKeyframe Keyframe;
+					Keyframe.Time = Time;
+					Keyframe.Transform = SourceAnimation->GetBoneTransform(i, Frame);
+					Track.Keyframes.Add(Keyframe);
+				}
 
 				RetargetedTracks.Add(Track);
 			}
@@ -442,8 +447,8 @@ UAnimSequence* UAnimationLibrary::RetargetAnimation(
 		SourceAnimation->GetName() + TEXT("_Retargeted"),
 		TargetSkeleton,
 		RetargetedTracks,
-		SourceAnimation->GetSequenceLength(),
-		30.0f
+		Duration,
+		(SourceFrameCount > 1 && Duration > 0.0f) ? (SourceFrameCount - 1) / Duration : 30.0f
 	);
 }
 
@@ -662,11 +667,25 @@ UAnimSequence* UAnimationLibrary::BlendAnimations(
 
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
 
+	TArray<TArray<int32>> AnimBoneIndices;
+	AnimBoneIndices.SetNum(Animations.Num());
+	for (int32 i = 0; i < Animations.Num(); i++)
+	{
+		AnimBoneIndices[i].SetNum(RefSkeleton.GetNum());
+		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); BoneIndex++)
+		{
+			FName BoneName = RefSkeleton.GetBoneName(BoneIndex);
+			AnimBoneIndices[i][BoneIndex] = Animations[i] && Animations[i]->GetSkeleton() ?
+				Animations[i]->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName) : INDEX_NONE;
+		}
+	}
+
 	for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); BoneIndex++)
 	{
 		FName BoneName = RefSkeleton.GetBoneName(BoneIndex);
 		FAnimationTrackData Track;
 		Track.TrackName = BoneName;
+		Track.Keyframes.Reserve(FrameCount);
 
 		for (int32 Frame = 0; Frame < FrameCount; Frame++)
 		{
@@ -689,8 +708,7 @@ UAnimSequence* UAnimationLibrary::BlendAnimations(
 					int32 NumKeys = Animations[i]->GetNumberOfSampledKeys();
 					int32 SampleIndex = FMath::Clamp((int32)(Alpha * (NumKeys - 1)), 0, FMath::Max(NumKeys - 1, 0));
 
-					int32 AnimBoneIndex = Animations[i]->GetSkeleton() ?
-						Animations[i]->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName) : INDEX_NONE;
+					int32 AnimBoneIndex = AnimBoneIndices[i][BoneIndex];
 					if (AnimBoneIndex == INDEX_NONE)
 					{
 						continue;
@@ -983,7 +1001,7 @@ bool UAnimationLibrary::ExportAnimationBVH(UAnimSequence* AnimSequence, const FS
 			FQuat Rotation = BoneTransform.GetRotation();
 			FVector EulerRot = Rotation.Euler();
 
-			if (RefSkeleton.GetNum() - 1 == i)
+			if (i == 0)
 			{
 				BVHContent += FString::Printf(TEXT("%.4f %.4f %.4f %.4f %.4f %.4f "), Location.X, Location.Y, Location.Z, EulerRot.Z, EulerRot.X, EulerRot.Y);
 			}
@@ -1274,7 +1292,7 @@ int32 UAnimationLibrary::AddKeyframesBatch(
 		return 0;
 	}
 
-	return Keyframes.Num();
+	return 0;
 }
 
 bool UAnimationLibrary::RemoveBoneKeyframe(

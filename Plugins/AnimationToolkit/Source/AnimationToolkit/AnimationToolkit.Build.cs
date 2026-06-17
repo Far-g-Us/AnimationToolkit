@@ -32,7 +32,6 @@ public class AnimationToolkit : ModuleRules
 			"RHI",
 			"Projects",
 			"ToolMenus",
-			"EditorStyle",
 			"LevelEditor",
 			"PropertyEditor",
 			"WorkspaceMenuStructure",

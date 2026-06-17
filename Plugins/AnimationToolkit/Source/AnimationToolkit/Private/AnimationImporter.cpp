@@ -121,7 +121,9 @@ UAnimSequence* UAnimationImporter::ImportAndCreateAnimSequence(
 bool UAnimationImporter::IsSupportedFormat(const FString& FilePath, EAnimationImportFormat& OutFormat)
 {
 	OutFormat = DetectFormat(FilePath);
-	return true;
+
+	TArray<EAnimationImportFormat> Supported = GetSupportedFormats();
+	return Supported.Contains(OutFormat);
 }
 
 TArray<EAnimationImportFormat> UAnimationImporter::GetSupportedFormats()

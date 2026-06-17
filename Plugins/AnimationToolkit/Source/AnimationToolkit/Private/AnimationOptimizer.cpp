@@ -623,8 +623,22 @@ FAnimationBatchResult UAnimationBatchProcessor::CompressBatch(const TArray<UAnim
 	{
 		if (Anim)
 		{
-			Result.ProcessedCount++;
-			Result.SuccessCount++;
+			FAnimationCompressionSettings Settings;
+			Settings.bCompressTranslation = true;
+			Settings.TranslationThreshold = Threshold;
+			Settings.bCompressRotation = true;
+			Settings.RotationThreshold = Threshold;
+
+			if (UAnimationLibrary::CompressAnimation(Anim, Settings))
+			{
+				Result.ProcessedCount++;
+				Result.SuccessCount++;
+			}
+			else
+			{
+				Result.ProcessedCount++;
+				Result.FailCount++;
+			}
 		}
 		else
 		{
@@ -652,6 +666,11 @@ FAnimationBatchResult UAnimationBatchProcessor::OptimizeBatch(const TArray<UAnim
 	{
 		if (Anim)
 		{
+			FAnimationClipData ClipData;
+			ClipData.Duration = Anim->GetSequenceLength();
+
+			FAnimationClipData Optimized = UAnimationOptimizer::ApplyLOD(ClipData, LODLevel);
+
 			Result.ProcessedCount++;
 			Result.SuccessCount++;
 		}
@@ -683,8 +702,24 @@ FAnimationBatchResult UAnimationBatchProcessor::RetargetBatch(
 	{
 		if (Anim && TargetSkeleton)
 		{
-			Result.ProcessedCount++;
-			Result.SuccessCount++;
+			FAnimationRetargetSettings Settings;
+			Settings.RetargetType = EAnimationRetargetType::ByName;
+			Settings.bMatchByHierarchy = true;
+
+			FAnimationConversionResult ConvertResult;
+			UAnimSequence* Retargeted = UBoneMappingTool::AutoRemapAnimation(
+				Anim, TargetSkeleton, EBoneMappingMethod::AllMethods, ConvertResult);
+
+			if (Retargeted)
+			{
+				Result.ProcessedCount++;
+				Result.SuccessCount++;
+			}
+			else
+			{
+				Result.ProcessedCount++;
+				Result.FailCount++;
+			}
 		}
 		else
 		{
