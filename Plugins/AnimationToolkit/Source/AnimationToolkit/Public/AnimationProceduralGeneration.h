@@ -46,6 +46,25 @@ public:
 		float BobAmplitude = 2.0f);
 
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Procedural", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* GenerateJumpAnimation(
+		UObject* WorldContextObject,
+		USkeleton* Skeleton,
+		float JumpHeight = 200.0f,
+		float Duration = 0.8f);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Procedural", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* GenerateAttackAnimation(
+		UObject* WorldContextObject,
+		USkeleton* Skeleton,
+		float Duration = 0.6f);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Procedural", meta = (WorldContext = "WorldContextObject"))
+	static UAnimSequence* GenerateDeathAnimation(
+		UObject* WorldContextObject,
+		USkeleton* Skeleton,
+		float Duration = 1.2f);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Procedural", meta = (WorldContext = "WorldContextObject"))
 	static UAnimSequence* CombineProceduralAnimations(
 		UObject* WorldContextObject,
 		const TArray<UAnimSequence*>& Animations,

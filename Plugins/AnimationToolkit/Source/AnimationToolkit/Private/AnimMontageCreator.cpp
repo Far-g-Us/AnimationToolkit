@@ -4,6 +4,7 @@
 #include "Animation/Skeleton.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 UAnimMontage* UAnimMontageCreator::CreateAnimMontage(
 	UObject* WorldContextObject,
@@ -12,7 +13,49 @@ UAnimMontage* UAnimMontageCreator::CreateAnimMontage(
 	const TArray<FAnimMontageSectionData>& Sections,
 	UPackage* Package)
 {
-	return nullptr;
+	if (!Skeleton || MontageName.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	if (!Package)
+	{
+		const FString PackagePath = TEXT("/Game/Animations/") + MontageName;
+		Package = CreatePackage(*PackagePath);
+	}
+
+	if (!Package)
+	{
+		return nullptr;
+	}
+
+	UAnimMontage* Montage = NewObject<UAnimMontage>(Package, *MontageName, RF_Public | RF_Standalone);
+	if (!Montage)
+	{
+		return nullptr;
+	}
+
+	Montage->SetSkeleton(Skeleton);
+
+	for (const FAnimMontageSectionData& SectionData : Sections)
+	{
+		FSlotAnimationTrack SlotTrack;
+		SlotTrack.SlotName = SectionData.SectionName;
+
+		FAnimSegment Segment;
+		Segment.SetAnimReference(SectionData.Animation);
+		Segment.StartPos = SectionData.StartTime;
+		Segment.AnimEndTime = SectionData.EndTime;
+		Segment.AnimPlayRate = 1.0f;
+
+		SlotTrack.AnimTrack.AnimSegments.Add(Segment);
+		Montage->SlotAnimTracks.Add(SlotTrack);
+	}
+
+	Montage->MarkPackageDirty();
+	FAssetRegistryModule::AssetCreated(Montage);
+
+	return Montage;
 }
 
 UAnimMontage* UAnimMontageCreator::CreateAnimMontageFromSequence(
@@ -24,7 +67,27 @@ UAnimMontage* UAnimMontageCreator::CreateAnimMontageFromSequence(
 	float EndTime,
 	UPackage* Package)
 {
-	return nullptr;
+	if (!Skeleton || !AnimSequence || MontageName.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	const float Duration = AnimSequence->GetPlayLength();
+	if (EndTime < 0.0f)
+	{
+		EndTime = Duration;
+	}
+
+	FAnimMontageSectionData SectionData;
+	SectionData.SectionName = FName("Default");
+	SectionData.Animation = AnimSequence;
+	SectionData.StartTime = StartTime;
+	SectionData.EndTime = EndTime;
+
+	TArray<FAnimMontageSectionData> Sections;
+	Sections.Add(SectionData);
+
+	return CreateAnimMontage(WorldContextObject, MontageName, Skeleton, Sections, Package);
 }
 
 FAnimMontageSectionData UAnimMontageCreator::CreateMontageSectionData(
@@ -34,6 +97,10 @@ FAnimMontageSectionData UAnimMontageCreator::CreateMontageSectionData(
 	float EndTime)
 {
 	FAnimMontageSectionData SectionData;
+	SectionData.SectionName = SectionName;
+	SectionData.Animation = Animation;
+	SectionData.StartTime = StartTime;
+	SectionData.EndTime = EndTime;
 	return SectionData;
 }
 
@@ -43,7 +110,25 @@ bool UAnimMontageCreator::AddSectionToMontage(
 	float StartTime,
 	float EndTime)
 {
-	return false;
+	if (!Montage || !SectionData.Animation)
+	{
+		return false;
+	}
+
+	FSlotAnimationTrack SlotTrack;
+	SlotTrack.SlotName = SectionData.SectionName;
+
+	FAnimSegment Segment;
+	Segment.SetAnimReference(SectionData.Animation);
+	Segment.StartPos = StartTime;
+	Segment.AnimEndTime = EndTime;
+	Segment.AnimPlayRate = 1.0f;
+
+	SlotTrack.AnimTrack.AnimSegments.Add(Segment);
+	Montage->SlotAnimTracks.Add(SlotTrack);
+
+	Montage->MarkPackageDirty();
+	return true;
 }
 
 bool UAnimMontageCreator::SetMontageBlendIn(
@@ -51,7 +136,16 @@ bool UAnimMontageCreator::SetMontageBlendIn(
 	float BlendInTime,
 	EAlphaBlendOption BlendInOption)
 {
-	return false;
+	if (!Montage)
+	{
+		return false;
+	}
+
+	Montage->BlendIn.SetBlendOption(BlendInOption);
+	Montage->BlendIn.SetBlendTime(BlendInTime);
+	Montage->MarkPackageDirty();
+
+	return true;
 }
 
 bool UAnimMontageCreator::SetMontageBlendOut(
@@ -59,11 +153,43 @@ bool UAnimMontageCreator::SetMontageBlendOut(
 	float BlendOutTime,
 	EAlphaBlendOption BlendOutOption)
 {
-	return false;
+	if (!Montage)
+	{
+		return false;
+	}
+
+	Montage->BlendOut.SetBlendOption(BlendOutOption);
+	Montage->BlendOut.SetBlendTime(BlendOutTime);
+	Montage->MarkPackageDirty();
+
+	return true;
 }
 
 void UAnimMontageCreator::ConfigureMontageSections(
 	UAnimMontage* Montage,
 	const TArray<FAnimMontageSectionData>& Sections)
 {
+	if (!Montage)
+	{
+		return;
+	}
+
+	Montage->SlotAnimTracks.Empty();
+
+	for (const FAnimMontageSectionData& SectionData : Sections)
+	{
+		FSlotAnimationTrack SlotTrack;
+		SlotTrack.SlotName = SectionData.SectionName;
+
+		FAnimSegment Segment;
+		Segment.SetAnimReference(SectionData.Animation);
+		Segment.StartPos = SectionData.StartTime;
+		Segment.AnimEndTime = SectionData.EndTime;
+		Segment.AnimPlayRate = 1.0f;
+
+		SlotTrack.AnimTrack.AnimSegments.Add(Segment);
+		Montage->SlotAnimTracks.Add(SlotTrack);
+	}
+
+	Montage->MarkPackageDirty();
 }

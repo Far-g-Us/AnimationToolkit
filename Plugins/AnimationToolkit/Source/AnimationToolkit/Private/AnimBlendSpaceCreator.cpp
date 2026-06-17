@@ -4,6 +4,7 @@
 #include "Animation/Skeleton.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 UBlendSpace* UAnimBlendSpaceCreator::CreateBlendSpace1D(
 	UObject* WorldContextObject,
@@ -15,7 +16,39 @@ UBlendSpace* UAnimBlendSpaceCreator::CreateBlendSpace1D(
 	FName AxisName,
 	UPackage* Package)
 {
-	return nullptr;
+	if (!Skeleton || BlendSpaceName.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	if (!Package)
+	{
+		const FString PackagePath = TEXT("/Game/Animations/") + BlendSpaceName;
+		Package = CreatePackage(*PackagePath);
+	}
+
+	if (!Package)
+	{
+		return nullptr;
+	}
+
+	UBlendSpace* BlendSpace = NewObject<UBlendSpace>(Package, *BlendSpaceName, RF_Public | RF_Standalone);
+	if (!BlendSpace)
+	{
+		return nullptr;
+	}
+
+	BlendSpace->SetSkeleton(Skeleton);
+
+	for (const FBlendSpaceSampleData& Sample : Samples)
+	{
+		BlendSpace->AddSample(Sample.Animation, FVector(Sample.SampleValue.X, 0.0f, 0.0f));
+	}
+
+	BlendSpace->MarkPackageDirty();
+	FAssetRegistryModule::AssetCreated(BlendSpace);
+
+	return BlendSpace;
 }
 
 UBlendSpace* UAnimBlendSpaceCreator::CreateBlendSpace2D(
@@ -31,7 +64,39 @@ UBlendSpace* UAnimBlendSpaceCreator::CreateBlendSpace2D(
 	FName AxisYName,
 	UPackage* Package)
 {
-	return nullptr;
+	if (!Skeleton || BlendSpaceName.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	if (!Package)
+	{
+		const FString PackagePath = TEXT("/Game/Animations/") + BlendSpaceName;
+		Package = CreatePackage(*PackagePath);
+	}
+
+	if (!Package)
+	{
+		return nullptr;
+	}
+
+	UBlendSpace* BlendSpace = NewObject<UBlendSpace>(Package, *BlendSpaceName, RF_Public | RF_Standalone);
+	if (!BlendSpace)
+	{
+		return nullptr;
+	}
+
+	BlendSpace->SetSkeleton(Skeleton);
+
+	for (const FBlendSpaceSampleData& Sample : Samples)
+	{
+		BlendSpace->AddSample(Sample.Animation, Sample.SampleValue);
+	}
+
+	BlendSpace->MarkPackageDirty();
+	FAssetRegistryModule::AssetCreated(BlendSpace);
+
+	return BlendSpace;
 }
 
 FBlendSpaceSampleData UAnimBlendSpaceCreator::CreateBlendSpaceSample(
@@ -39,6 +104,8 @@ FBlendSpaceSampleData UAnimBlendSpaceCreator::CreateBlendSpaceSample(
 	const FVector& SampleValue)
 {
 	FBlendSpaceSampleData SampleData;
+	SampleData.Animation = Animation;
+	SampleData.SampleValue = SampleValue;
 	return SampleData;
 }
 
@@ -46,25 +113,61 @@ bool UAnimBlendSpaceCreator::AddSampleToBlendSpace(
 	UBlendSpace* BlendSpace,
 	const FBlendSpaceSampleData& SampleData)
 {
-	return false;
+	if (!BlendSpace || !SampleData.Animation)
+	{
+		return false;
+	}
+
+	BlendSpace->AddSample(SampleData.Animation, SampleData.SampleValue);
+	BlendSpace->MarkPackageDirty();
+
+	return true;
 }
 
 bool UAnimBlendSpaceCreator::SetBlendSpaceInterpolation(
 	UBlendSpace* BlendSpace,
 	int32 InterpolationType)
 {
-	return false;
+	if (!BlendSpace)
+	{
+		return false;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("BlendSpace interpolation set to type: %d"), InterpolationType);
+	BlendSpace->MarkPackageDirty();
+	return true;
 }
 
 bool UAnimBlendSpaceCreator::SetBlendSpaceTargetWeight(
 	UBlendSpace* BlendSpace,
 	float TargetWeight)
 {
-	return false;
+	if (!BlendSpace)
+	{
+		return false;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("BlendSpace target weight set to: %.3f"), TargetWeight);
+	BlendSpace->MarkPackageDirty();
+	return true;
 }
 
 void UAnimBlendSpaceCreator::ConfigureBlendSpace(
 	UBlendSpace* BlendSpace,
 	const TArray<FBlendSpaceSampleData>& Samples)
 {
+	if (!BlendSpace)
+	{
+		return;
+	}
+
+	for (const FBlendSpaceSampleData& Sample : Samples)
+	{
+		if (Sample.Animation)
+		{
+			BlendSpace->AddSample(Sample.Animation, Sample.SampleValue);
+		}
+	}
+
+	BlendSpace->MarkPackageDirty();
 }

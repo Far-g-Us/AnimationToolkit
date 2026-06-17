@@ -23,6 +23,7 @@ public class AnimationToolkit : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"UnrealEd",
+			"AnimGraph",
 			"AssetTools",
 			"ContentBrowser",
 			"InputCore",

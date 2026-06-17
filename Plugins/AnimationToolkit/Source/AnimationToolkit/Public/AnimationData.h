@@ -12,7 +12,8 @@ enum class EAnimationImportFormat : uint8
 {
 	FBX,
 	glTF,
-	BVH
+	BVH,
+	COLLADA
 };
 
 USTRUCT(BlueprintType)

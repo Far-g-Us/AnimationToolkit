@@ -64,6 +64,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Export")
 	static FExportPresetSettings GetUSDPreset();
 
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Export")
+	static TArray<FExportPresetSettings> GetDefaultPresets();
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Export")
+	static bool ValidatePreset(const FExportPresetSettings& Preset, FString& OutErrorMessage);
+
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Export", meta = (WorldContext = "WorldContextObject"))
 	static bool ExportWithPreset(
 		UObject* WorldContextObject,

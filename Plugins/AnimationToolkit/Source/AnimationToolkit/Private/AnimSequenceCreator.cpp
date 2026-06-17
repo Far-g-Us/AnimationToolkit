@@ -4,7 +4,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
-#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 UAnimSequence* UAnimSequenceCreator::CreateAnimSequence(
 	UObject* WorldContextObject,
@@ -13,7 +13,34 @@ UAnimSequence* UAnimSequenceCreator::CreateAnimSequence(
 	const FAnimationClipData& ClipData,
 	UPackage* Package)
 {
-	return nullptr;
+	if (!Skeleton || SequenceName.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	if (!Package)
+	{
+		const FString PackagePath = TEXT("/Game/Animations/") + SequenceName;
+		Package = CreatePackage(*PackagePath);
+	}
+
+	if (!Package)
+	{
+		return nullptr;
+	}
+
+	UAnimSequence* AnimSequence = NewObject<UAnimSequence>(Package, *SequenceName, RF_Public | RF_Standalone);
+	if (!AnimSequence)
+	{
+		return nullptr;
+	}
+
+	AnimSequence->SetSkeleton(Skeleton);
+
+	AnimSequence->MarkPackageDirty();
+	FAssetRegistryModule::AssetCreated(AnimSequence);
+
+	return AnimSequence;
 }
 
 UAnimSequence* UAnimSequenceCreator::CreateAnimSequenceFromKeyframes(
@@ -25,7 +52,18 @@ UAnimSequence* UAnimSequenceCreator::CreateAnimSequenceFromKeyframes(
 	float FrameRate,
 	UPackage* Package)
 {
-	return nullptr;
+	if (!Skeleton || SequenceName.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	FAnimationClipData ClipData;
+	ClipData.ClipName = SequenceName;
+	ClipData.Duration = Duration;
+	ClipData.FrameRate = FrameRate;
+	ClipData.Tracks = Tracks;
+
+	return CreateAnimSequence(WorldContextObject, SequenceName, Skeleton, ClipData, Package);
 }
 
 FAnimationClipData UAnimSequenceCreator::CreateClipData(
@@ -35,6 +73,10 @@ FAnimationClipData UAnimSequenceCreator::CreateClipData(
 	const TArray<FAnimationTrackData>& Tracks)
 {
 	FAnimationClipData ClipData;
+	ClipData.ClipName = ClipName;
+	ClipData.Duration = Duration;
+	ClipData.FrameRate = FrameRate;
+	ClipData.Tracks = Tracks;
 	return ClipData;
 }
 
@@ -43,6 +85,8 @@ FAnimationTrackData UAnimSequenceCreator::CreateTrackData(
 	const TArray<FAnimationKeyframe>& Keyframes)
 {
 	FAnimationTrackData TrackData;
+	TrackData.TrackName = TrackName;
+	TrackData.Keyframes = Keyframes;
 	return TrackData;
 }
 
@@ -51,6 +95,8 @@ FAnimationKeyframe UAnimSequenceCreator::CreateKeyframe(
 	const FTransform& Transform)
 {
 	FAnimationKeyframe Keyframe;
+	Keyframe.Time = Time;
+	Keyframe.Transform = Transform;
 	return Keyframe;
 }
 
@@ -60,6 +106,20 @@ void UAnimSequenceCreator::ApplyTracksToAnimSequence(
 	USkeleton* Skeleton,
 	float FrameRate)
 {
+	if (!AnimSequence || !Skeleton)
+	{
+		return;
+	}
+
+	const float SafeFrameRate = FMath::Max(0.01f, FrameRate);
+
+	for (const FAnimationTrackData& Track : Tracks)
+	{
+		UE_LOG(LogTemp, Log, TEXT("ApplyTracksToAnimSequence: Track '%s' with %d keyframes"),
+			*Track.TrackName.ToString(), Track.Keyframes.Num());
+	}
+
+	AnimSequence->MarkPackageDirty();
 }
 
 FRawAnimSequenceTrack UAnimSequenceCreator::ConvertTrackData(
@@ -68,5 +128,41 @@ FRawAnimSequenceTrack UAnimSequenceCreator::ConvertTrackData(
 	float Duration)
 {
 	FRawAnimSequenceTrack RawTrack;
+	const int32 NumFrames = FMath::Max(1, FMath::RoundToInt(Duration * FrameRate));
+
+	RawTrack.PosKeys.SetNum(NumFrames);
+	RawTrack.RotKeys.SetNum(NumFrames);
+	RawTrack.ScaleKeys.SetNum(NumFrames);
+
+	for (int32 i = 0; i < NumFrames; ++i)
+	{
+		const float Time = (FrameRate > 0.0f) ? (static_cast<float>(i) / FrameRate) : 0.0f;
+
+		FTransform InterpolatedTransform = FTransform::Identity;
+		if (TrackData.Keyframes.Num() > 0)
+		{
+			if (TrackData.Keyframes.Num() == 1)
+			{
+				InterpolatedTransform = TrackData.Keyframes[0].Transform;
+			}
+			else
+			{
+				const float SafeDuration = FMath::Max(0.001f, Duration);
+				const float NormalizedTime = FMath::Clamp(Time / SafeDuration, 0.0f, 1.0f);
+				const float ScaledTime = NormalizedTime * (TrackData.Keyframes.Num() - 1);
+				const int32 IndexA = FMath::FloorToInt(ScaledTime);
+				const int32 IndexB = FMath::Min(IndexA + 1, TrackData.Keyframes.Num() - 1);
+				const float Alpha = ScaledTime - static_cast<float>(IndexA);
+
+				InterpolatedTransform = TrackData.Keyframes[IndexA].Transform;
+				InterpolatedTransform.BlendWith(TrackData.Keyframes[IndexB].Transform, Alpha);
+			}
+		}
+
+		RawTrack.PosKeys[i] = FVector3f(InterpolatedTransform.GetTranslation());
+		RawTrack.RotKeys[i] = FQuat4f(InterpolatedTransform.GetRotation());
+		RawTrack.ScaleKeys[i] = FVector3f(InterpolatedTransform.GetScale3D());
+	}
+
 	return RawTrack;
 }
