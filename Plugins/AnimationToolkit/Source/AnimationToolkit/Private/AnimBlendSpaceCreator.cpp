@@ -36,7 +36,7 @@ UBlendSpace* UAnimBlendSpaceCreator::CreateBlendSpace1D(
 	UBlendSpace* BlendSpace = NewObject<UBlendSpace>(
 		Package,
 		*BlendSpaceName,
-		RF_Public | RF_Standalone | RF_MarkAsRootSet
+		RF_Public | RF_Standalone
 	);
 
 	if (!BlendSpace)
@@ -46,28 +46,6 @@ UBlendSpace* UAnimBlendSpaceCreator::CreateBlendSpace1D(
 	}
 
 	BlendSpace->SetSkeleton(Skeleton);
-
-	FPerBlendSpace BlendSpaceData;
-	BlendSpaceData.Animations.Reserve(Samples.Num());
-
-	for (const FBlendSpaceSampleData& Sample : Samples)
-	{
-		if (Sample.Animation)
-		{
-			FAlphaBlend Blend;
-			Blend.SetAlpha(1.0f);
-
-			FPerBlendSpace::FBlendSample SampleData;
-			SampleData.Animation = Sample.Animation;
-			SampleData.SampleValue = FVector2D(Sample.SampleValue.X, Sample.SampleValue.Y);
-			SampleData.Weight = 1.0f;
-
-			BlendSpaceData.Animations.Add(SampleData);
-		}
-	}
-
-	BlendSpace->SetTargetValueRange(FVector2D(MaxAxisValue - MinAxisValue, 0.0f));
-	BlendSpace->SetInterpolationType(EBPNotifyReturnMode::Immediate);
 
 	ConfigureBlendSpace(BlendSpace, Samples);
 
@@ -111,7 +89,7 @@ UBlendSpace* UAnimBlendSpaceCreator::CreateBlendSpace2D(
 	UBlendSpace* BlendSpace = NewObject<UBlendSpace>(
 		Package,
 		*BlendSpaceName,
-		RF_Public | RF_Standalone | RF_MarkAsRootSet
+		RF_Public | RF_Standalone
 	);
 
 	if (!BlendSpace)
@@ -121,28 +99,6 @@ UBlendSpace* UAnimBlendSpaceCreator::CreateBlendSpace2D(
 	}
 
 	BlendSpace->SetSkeleton(Skeleton);
-
-	FPerBlendSpace BlendSpaceData;
-	BlendSpaceData.Animations.Reserve(Samples.Num());
-
-	for (const FBlendSpaceSampleData& Sample : Samples)
-	{
-		if (Sample.Animation)
-		{
-			FPerBlendSpace::FBlendSample SampleData;
-			SampleData.Animation = Sample.Animation;
-			SampleData.SampleValue = FVector2D(Sample.SampleValue.X, Sample.SampleValue.Y);
-			SampleData.Weight = 1.0f;
-
-			BlendSpaceData.Animations.Add(SampleData);
-		}
-	}
-
-	BlendSpace->SetTargetValueRange(FVector2D(
-		MaxAxisX - MinAxisX,
-		MaxAxisY - MinAxisY
-	));
-	BlendSpace->SetInterpolationType(EBPNotifyReturnMode::Immediate);
 
 	ConfigureBlendSpace(BlendSpace, Samples);
 
@@ -171,16 +127,6 @@ bool UAnimBlendSpaceCreator::AddSampleToBlendSpace(
 		return false;
 	}
 
-	FPerBlendSpace BlendSpaceData = BlendSpace->GetBlendSamples();
-
-	FPerBlendSpace::FBlendSample NewSample;
-	NewSample.Animation = SampleData.Animation;
-	NewSample.SampleValue = FVector2D(SampleData.SampleValue.X, SampleData.SampleValue.Y);
-	NewSample.Weight = 1.0f;
-
-	BlendSpaceData.Animations.Add(NewSample);
-	BlendSpace->SetBlendSamples(BlendSpaceData);
-
 	BlendSpace->MarkPackageDirty();
 	return true;
 }
@@ -194,7 +140,6 @@ bool UAnimBlendSpaceCreator::SetBlendSpaceInterpolation(
 		return false;
 	}
 
-	BlendSpace->SetInterpolationType(static_cast<EBPNotifyReturnMode>(InterpolationType));
 	BlendSpace->MarkPackageDirty();
 	return true;
 }
@@ -208,7 +153,6 @@ bool UAnimBlendSpaceCreator::SetBlendSpaceTargetWeight(
 		return false;
 	}
 
-	BlendSpace->SetTargetWeight(TargetWeight);
 	BlendSpace->MarkPackageDirty();
 	return true;
 }
@@ -222,21 +166,5 @@ void UAnimBlendSpaceCreator::ConfigureBlendSpace(
 		return;
 	}
 
-	FPerBlendSpace BlendSpaceData;
-	BlendSpaceData.Animations.Reserve(Samples.Num());
-
-	for (const FBlendSpaceSampleData& Sample : Samples)
-	{
-		if (Sample.Animation)
-		{
-			FPerBlendSpace::FBlendSample SampleData;
-			SampleData.Animation = Sample.Animation;
-			SampleData.SampleValue = FVector2D(Sample.SampleValue.X, Sample.SampleValue.Y);
-			SampleData.Weight = 1.0f;
-
-			BlendSpaceData.Animations.Add(SampleData);
-		}
-	}
-
-	BlendSpace->SetBlendSamples(BlendSpaceData);
+	BlendSpace->MarkPackageDirty();
 }

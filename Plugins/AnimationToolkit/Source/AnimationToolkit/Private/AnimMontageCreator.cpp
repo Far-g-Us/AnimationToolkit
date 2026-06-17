@@ -33,7 +33,7 @@ UAnimMontage* UAnimMontageCreator::CreateAnimMontage(
 	UAnimMontage* Montage = NewObject<UAnimMontage>(
 		Package,
 		*MontageName,
-		RF_Public | RF_Standalone | RF_MarkAsRootSet
+		RF_Public | RF_Standalone
 	);
 
 	if (!Montage)
@@ -52,9 +52,6 @@ UAnimMontage* UAnimMontageCreator::CreateAnimMontage(
 			MaxEndTime = FMath::Max(MaxEndTime, Section.EndTime);
 		}
 	}
-
-	Montage->SetRawNumberOfFrames(FMath::Max(1, FMath::CeilToInt(MaxEndTime * 30.0f)));
-	Montage->SetSamplingFrameRate(FFrameRate(30.0f, 1));
 
 	ConfigureMontageSections(Montage, Sections);
 
@@ -122,12 +119,17 @@ bool UAnimMontageCreator::AddSectionToMontage(
 	}
 
 	FAnimMontageSection NewSection;
-	NewSection.SetAnimSequence(SectionData.Animation);
 	NewSection.SetRangeStart(StartTime);
 	NewSection.SetRangeEnd(EndTime);
 
-	Montage->GetSlotAnimTrackForMontage().GetSegmentContainer().Add(FAnimSegment());
-	FAnimSegment& Segment = Montage->GetSlotAnimTrackForMontage().GetSegmentContainer().Last();
+	if (Montage->GetSlotAnimTracks().Num() == 0)
+	{
+		Montage->GetSlotAnimTracks().Add(FSlotAnimTrack());
+	}
+
+	FSlotAnimTrack& SlotTrack = Montage->GetSlotAnimTracks()[0];
+	SlotTrack.GetSegmentContainer().Add(FAnimSegment());
+	FAnimSegment& Segment = SlotTrack.GetSegmentContainer().Last();
 	Segment.SetAnimReference(SectionData.Animation);
 	Segment.SetStartPos(StartTime);
 	Segment.SetEndPos(EndTime);
@@ -147,7 +149,8 @@ bool UAnimMontageCreator::SetMontageBlendIn(
 		return false;
 	}
 
-	Montage->SetBlendInArg(FAlphaBlend(BlendInTime, BlendInOption));
+	Montage->BlendIn.BlendTime = BlendInTime;
+	Montage->BlendIn.BlendOption = BlendInOption;
 	Montage->MarkPackageDirty();
 	return true;
 }
@@ -162,7 +165,8 @@ bool UAnimMontageCreator::SetMontageBlendOut(
 		return false;
 	}
 
-	Montage->SetBlendOutArg(FAlphaBlend(BlendOutTime, BlendOutOption));
+	Montage->BlendOut.BlendTime = BlendOutTime;
+	Montage->BlendOut.BlendOption = BlendOutOption;
 	Montage->MarkPackageDirty();
 	return true;
 }

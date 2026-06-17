@@ -1,6 +1,8 @@
 #include "AnimationOptimizer.h"
+#include "AnimationImporter.h"
 #include "Animation/AnimSequence.h"
 #include "Engine/Engine.h"
+#include "Kismet/GameplayStatics.h"
 
 TWeakObjectPtr<UAnimationObjectPool> UAnimationObjectPool::Instance = nullptr;
 
@@ -9,10 +11,6 @@ UAnimationObjectPool* UAnimationObjectPool::GetPool()
 	if (!Instance.IsValid() || Instance.Get() == nullptr)
 	{
 		Instance = NewObject<UAnimationObjectPool>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
-		if (Instance.IsValid())
-		{
-			Instance->AddToRoot();
-		}
 	}
 	return Instance.Get();
 }
@@ -290,10 +288,6 @@ UAnimationLODManager* UAnimationLODManager::GetLODManager()
 	if (!Instance.IsValid() || Instance.Get() == nullptr)
 	{
 		Instance = NewObject<UAnimationLODManager>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
-		if (Instance.IsValid())
-		{
-			Instance->AddToRoot();
-		}
 	}
 	return Instance.Get();
 }
@@ -305,7 +299,13 @@ void UAnimationLODManager::UpdateLOD(AActor* Actor, const FAnimationLODSettings&
 		return;
 	}
 
-	APlayerController* PC = UGameplayStatics::GetPlayerController(Actor->GetWorld(), 0);
+	UWorld* World = Actor->GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
 	if (!PC || !PC->PlayerCameraManager)
 	{
 		return;
@@ -353,10 +353,6 @@ UAnimationLazyLoader* UAnimationLazyLoader::GetLazyLoader()
 	if (!Instance.IsValid() || Instance.Get() == nullptr)
 	{
 		Instance = NewObject<UAnimationLazyLoader>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
-		if (Instance.IsValid())
-		{
-			Instance->AddToRoot();
-		}
 	}
 	return Instance.Get();
 }
@@ -397,9 +393,17 @@ UAnimSequence* UAnimationLazyLoader::LoadAnimation(const FName& AnimationName, U
 		Format = EAnimationImportFormat::BVH;
 	}
 
-	UAnimSequence* AnimSequence = nullptr;
+	UAnimSequence* AnimSequence = UAnimationImporter::ImportAnimation(
+		nullptr,
+		*FilePath,
+		Format,
+		Skeleton
+	);
 
-	LoadedAnimations.Add(AnimationName, AnimSequence);
+	if (AnimSequence)
+	{
+		LoadedAnimations.Add(AnimationName, AnimSequence);
+	}
 	return AnimSequence;
 }
 
@@ -449,10 +453,6 @@ UAnimationMemoryPool* UAnimationMemoryPool::GetMemoryPool()
 	if (!Instance.IsValid() || Instance.Get() == nullptr)
 	{
 		Instance = NewObject<UAnimationMemoryPool>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
-		if (Instance.IsValid())
-		{
-			Instance->AddToRoot();
-		}
 	}
 	return Instance.Get();
 }
@@ -565,10 +565,6 @@ UAnimationBatchProcessor* UAnimationBatchProcessor::GetBatchProcessor()
 	if (!Instance.IsValid() || Instance.Get() == nullptr)
 	{
 		Instance = NewObject<UAnimationBatchProcessor>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
-		if (Instance.IsValid())
-		{
-			Instance->AddToRoot();
-		}
 	}
 	return Instance.Get();
 }

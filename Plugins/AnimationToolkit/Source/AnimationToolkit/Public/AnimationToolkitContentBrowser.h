@@ -8,13 +8,13 @@
 class UAnimSequence;
 
 UCLASS()
-class ANIMATIONTOOLKIT_API UAnimationToolkitContentBrowserModule : public IModuleInterface
+class ANIMATIONTOOLKIT_API UAnimationToolkitContentBrowserModule : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
+	void StartupModule();
+	void ShutdownModule();
 
 	void RegisterAssetTypeActions();
 	void UnregisterAssetTypeActions();
@@ -23,11 +23,8 @@ private:
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 };
 
-UCLASS()
 class ANIMATIONTOOLKIT_API FAnimationToolkitAssetTypeActions : public IAssetTypeActions
 {
-	GENERATED_BODY()
-
 public:
 	virtual FText GetName() const override;
 	virtual FColor GetTypeColor() const override;

@@ -146,10 +146,6 @@ UAnimationFactory* UAnimationFactory::GetInstance()
 	if (!Instance.IsValid() || Instance.Get() == nullptr)
 	{
 		Instance = NewObject<UAnimationFactory>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
-		if (Instance.IsValid())
-		{
-			Instance->AddToRoot();
-		}
 	}
 
 	return Instance.Get();

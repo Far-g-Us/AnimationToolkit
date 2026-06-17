@@ -278,3 +278,118 @@ struct FAnimationExportSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Export")
 	FString CharacterName = TEXT("Character");
 };
+
+UENUM(BlueprintType)
+enum class EEngineVersion : uint8
+{
+	UE4_0,
+	UE4_1,
+	UE4_2,
+	UE4_3,
+	UE4_4,
+	UE4_5,
+	UE4_6,
+	UE4_7,
+	UE4_8,
+	UE4_9,
+	UE4_10,
+	UE4_11,
+	UE4_12,
+	UE4_13,
+	UE4_14,
+	UE4_15,
+	UE4_16,
+	UE4_17,
+	UE4_18,
+	UE4_19,
+	UE4_20,
+	UE4_21,
+	UE4_22,
+	UE4_23,
+	UE4_24,
+	UE4_25,
+	UE4_26,
+	UE4_27,
+	UE5_0,
+	UE5_1,
+	UE5_2,
+	UE5_3,
+	UE5_4,
+	UE5_5,
+	UE5_6,
+	UE5_7,
+	UE5_8,
+	Custom
+};
+
+USTRUCT(BlueprintType)
+struct FEngineVersionProfile
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Version")
+	EEngineVersion SourceVersion = EEngineVersion::UE4_27;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Version")
+	EEngineVersion TargetVersion = EEngineVersion::UE5_5;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Version")
+	float ScaleMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Version")
+	bool bConvertBoneNames = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Version")
+	bool bFixRootMotion = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Version")
+	bool bNormalizeRotations = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Version")
+	TMap<FName, FName> CustomBoneRenames;
+};
+
+USTRUCT(BlueprintType)
+struct FAnimationRepairResult
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Repair")
+	bool bSuccess = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Repair")
+	int32 BonesRepaired = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Repair")
+	int32 BonesStillMissing = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Repair")
+	TArray<FName> RepairedBones;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Repair")
+	TArray<FName> StillMissingBones;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Repair")
+	FString Message;
+};
+
+USTRUCT(BlueprintType)
+struct FAnimationConversionResult
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Convert")
+	bool bSuccess = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Convert")
+	int32 AnimationsConverted = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Convert")
+	int32 BonesRenamed = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Convert")
+	TArray<FString> Warnings;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animation|Convert")
+	FString Message;
+};

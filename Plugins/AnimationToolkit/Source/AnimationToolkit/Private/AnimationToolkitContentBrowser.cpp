@@ -6,6 +6,8 @@
 #include "ToolMenus.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
 #include "Misc/MessageDialog.h"
 #include "Framework/Application/SlateApplication.h"
 

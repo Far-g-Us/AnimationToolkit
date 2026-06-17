@@ -39,7 +39,7 @@ UAnimSequence* UAnimSequenceCreator::CreateAnimSequence(
 	UAnimSequence* AnimSequence = NewObject<UAnimSequence>(
 		Package,
 		*SequenceName,
-		RF_Public | RF_Standalone | RF_MarkAsRootSet
+		RF_Public | RF_Standalone
 	);
 
 	if (!AnimSequence)
@@ -49,10 +49,6 @@ UAnimSequence* UAnimSequenceCreator::CreateAnimSequence(
 	}
 
 	AnimSequence->SetSkeleton(Skeleton);
-	AnimSequence->SetRawNumberOfFrames(FMath::Max(1, FMath::CeilToInt(ClipData.Duration * ClipData.FrameRate)));
-	AnimSequence->SetRawCurveData(TMap<FRawCurveTracks::CurveType, FSmartName>());
-	AnimSequence->SetSamplingFrameRate(FFrameRate(ClipData.FrameRate, 1));
-	AnimSequence->SetNumberOfSampledKeys();
 
 	ApplyTracksToAnimSequence(AnimSequence, ClipData.Tracks, Skeleton, ClipData.FrameRate);
 
@@ -128,18 +124,19 @@ void UAnimSequenceCreator::ApplyTracksToAnimSequence(
 	const float Duration = AnimSequence->GetSequenceLength();
 	const int32 NumFrames = AnimSequence->GetNumberOfSampledKeys();
 
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+	AnimSequence->GetEditableRawAnimationData().Tracks.SetNum(RefSkeleton.GetNum());
+
 	for (const FAnimationTrackData& TrackData : Tracks)
 	{
-		int32 BoneIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(TrackData.TrackName);
+		int32 BoneIndex = RefSkeleton.FindBoneIndex(TrackData.TrackName);
 		if (BoneIndex == INDEX_NONE)
 		{
 			continue;
 		}
 
 		FRawAnimSequenceTrack RawTrack = ConvertTrackData(TrackData, FrameRate, Duration);
-
-		AnimSequence->AddTrack(TrackData.TrackName);
-		AnimSequence->SetRawTrack(TrackData.TrackName, &RawTrack);
+		AnimSequence->GetEditableRawAnimationData().Tracks[BoneIndex] = RawTrack;
 	}
 }
 

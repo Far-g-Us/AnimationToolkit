@@ -1,7 +1,7 @@
 #include "AnimationToolkitCurvesEditor.h"
 #include "AnimationLibrary.h"
 #include "Animation/AnimSequence.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Rendering/DrawElements.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -14,10 +14,6 @@ UAnimationCurveEditorManager* UAnimationCurveEditorManager::GetCurvesEditorManag
 	if (!Instance.IsValid() || Instance.Get() == nullptr)
 	{
 		Instance = NewObject<UAnimationCurveEditorManager>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
-		if (Instance.IsValid())
-		{
-			Instance->AddToRoot();
-		}
 	}
 	return Instance.Get();
 }
@@ -361,7 +357,7 @@ void SCurvesEditorWidget::Construct(const FArguments& InArgs)
 			.Padding(5.0f)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("CurvesArea", "Curves Area - Draw curves here"))
@@ -488,7 +484,7 @@ TSharedRef<SWidget> SCurvesEditorWidget::CreateCurvesList()
 	[
 		SNew(STextBlock)
 		.Text(LOCTEXT("Curves", "Curves"))
-		.Font(FEditorStyle::GetFontStyle("LargeBoldFont"))
+		.Font(FAppStyle::GetFontStyle("LargeBoldFont"))
 	]
 	+ SVerticalBox::Slot()
 	.FillHeight(1.0f)
@@ -815,10 +811,12 @@ void SCurvesEditorWidget::DrawKeyframes(const FAnimationCurveEditorCurve& Curve,
 
 FVector2D SCurvesEditorWidget::TimeToScreen(float Time, const FGeometry& Geometry) const
 {
-	float NormalizedTime = (Time - ViewMinTime) / (ViewMaxTime - ViewMinTime);
+	float TimeRange = ViewMaxTime - ViewMinTime;
+	float NormalizedTime = (TimeRange > 0.0f) ? (Time - ViewMinTime) / TimeRange : 0.0f;
 	float ScreenX = NormalizedTime * Geometry.GetLocalSize().X;
 
-	float NormalizedValue = (0.0f - ViewMinValue) / (ViewMaxValue - ViewMinValue);
+	float ValueRange = ViewMaxValue - ViewMinValue;
+	float NormalizedValue = (ValueRange > 0.0f) ? (0.0f - ViewMinValue) / ValueRange : 0.0f;
 	float ScreenY = (1.0f - NormalizedValue) * Geometry.GetLocalSize().Y;
 
 	return FVector2D(ScreenX, ScreenY);
@@ -833,7 +831,8 @@ float SCurvesEditorWidget::ScreenToTime(const FVector2D& ScreenPos, const FGeome
 FVector2D SCurvesEditorWidget::ValueToScreen(float Value, const FGeometry& Geometry) const
 {
 	float ScreenX = 0.0f;
-	float NormalizedValue = (Value - ViewMinValue) / (ViewMaxValue - ViewMinValue);
+	float ValueRange = ViewMaxValue - ViewMinValue;
+	float NormalizedValue = (ValueRange > 0.0f) ? (Value - ViewMinValue) / ValueRange : 0.0f;
 	float ScreenY = (1.0f - NormalizedValue) * Geometry.GetLocalSize().Y;
 
 	return FVector2D(ScreenX, ScreenY);

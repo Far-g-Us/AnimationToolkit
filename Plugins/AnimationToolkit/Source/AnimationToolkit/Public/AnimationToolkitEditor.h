@@ -12,7 +12,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSlider.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "IAssetTypeActions.h"
 #include "AnimationData.h"
 #include "AnimationToolkitEditor.generated.h"
@@ -21,13 +21,13 @@ class UAnimSequence;
 class USkeleton;
 
 UCLASS()
-class ANIMATIONTOOLKIT_API UAnimationToolkitEditorModule : public IModuleInterface
+class ANIMATIONTOOLKIT_API UAnimationToolkitEditorModule : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
+	void StartupModule();
+	void ShutdownModule();
 
 	void RegisterMenus();
 
@@ -47,7 +47,6 @@ private:
 	TSharedRef<SWidget> CreateAnimationToolkitMenu();
 };
 
-UCLASS()
 class ANIMATIONTOOLKIT_API FAnimationToolkitEditorCommands : public TCommands<FAnimationToolkitEditorCommands>
 {
 public:
@@ -56,7 +55,7 @@ public:
 			TEXT("AnimationToolkit"),
 			NSLOCTEXT("Contexts", "AnimationToolkit", "Animation Toolkit"),
 			NAME_None,
-			FEditorStyle::GetAppStyleSetName()
+			FAppStyle::GetAppStyleSetName()
 		)
 	{
 	}

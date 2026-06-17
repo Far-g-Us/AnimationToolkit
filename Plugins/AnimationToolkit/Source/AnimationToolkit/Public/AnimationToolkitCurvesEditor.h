@@ -148,11 +148,8 @@ private:
 	static TWeakObjectPtr<UAnimationCurveEditorManager> Instance;
 };
 
-UCLASS()
 class ANIMATIONTOOLKIT_API SCurvesEditorWidget : public SCompoundWidget
 {
-	GENERATED_BODY()
-
 public:
 	SLATE_BEGIN_ARGS(SCurvesEditorWidget) {}
 		SLATE_ARGUMENT(UAnimSequence*, Animation)

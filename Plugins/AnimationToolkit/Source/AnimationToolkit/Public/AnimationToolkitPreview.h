@@ -104,11 +104,8 @@ private:
 	static TWeakObjectPtr<UAnimationPreviewManager> Instance;
 };
 
-UCLASS()
 class ANIMATIONTOOLKIT_API SAnimationPreviewWidget : public SCompoundWidget
 {
-	GENERATED_BODY()
-
 public:
 	SLATE_BEGIN_ARGS(SAnimationPreviewWidget) {}
 		SLATE_ARGUMENT(UAnimSequence*, Animation)

@@ -1,5 +1,5 @@
 #include "AnimationToolkitEditor.h"
-#include "AnimationToolkit.h"
+#include "AnimationToolkitModule.h"
 #include "AnimationLibrary.h"
 #include "AnimationImporter.h"
 #include "AnimationOptimizer.h"
@@ -8,6 +8,7 @@
 #include "LevelEditor.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SWrapBox.h"
@@ -25,7 +26,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Text/SEditableText.h"
 #include "Widgets/Views/SListView.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 #include "Misc/MessageDialog.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ContentBrowserModule.h"
@@ -39,7 +40,7 @@ void UAnimationToolkitEditorModule::StartupModule()
 
 	FGlobalTabManager::Get()->RegisterNomadTabSpawner("AnimationToolkitTab", FOnSpawnTab::CreateLambda([](const FSpawnTabArgs& Args)
 	{
-		FAnimationToolkitEditor* Editor = new FAnimationToolkitEditor();
+		TSharedRef<FAnimationToolkitEditor> Editor = MakeShareable(new FAnimationToolkitEditor());
 		Editor->InitEditor(TArray<UObject*>());
 		return SNew(SDockTab);
 	}))
@@ -70,7 +71,7 @@ void UAnimationToolkitEditorModule::RegisterMenus()
 			"OpenAnimationToolkit",
 			LOCTEXT("OpenAnimationToolkit", "Animation Toolkit"),
 			LOCTEXT("OpenAnimationToolkitTooltip", "Open Animation Toolkit Editor"),
-			FSlateIcon(FEditorStyle::GetAppStyleSetName(), "LevelEditor.OpenCloseContentBrowser"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.OpenCloseContentBrowser"),
 			FUIAction(FExecuteAction::CreateLambda([]()
 			{
 				FGlobalTabManager::Get()->TryInvokeTab(FName("AnimationToolkitTab"));
@@ -91,7 +92,7 @@ void UAnimationToolkitEditorModule::RegisterMenus()
 			),
 			LOCTEXT("AnimationToolkitButton", "Animation Toolkit"),
 			LOCTEXT("AnimationToolkitButtonTooltip", "Open Animation Toolkit"),
-			FSlateIcon(FEditorStyle::GetAppStyleSetName(), "LevelEditor.OpenCloseContentBrowser")
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.OpenCloseContentBrowser")
 		));
 	}
 }
@@ -105,7 +106,7 @@ void UAnimationToolkitEditorModule::AddToolbarButton(FToolBarBuilder& Builder)
 		NAME_None,
 		LOCTEXT("Import", "Import"),
 		LOCTEXT("ImportTooltip", "Import Animation"),
-		FSlateIcon(FEditorStyle::GetAppStyleSetName(), "Icons.Import")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import")
 	);
 
 	Builder.AddToolBarButton(
@@ -113,7 +114,7 @@ void UAnimationToolkitEditorModule::AddToolbarButton(FToolBarBuilder& Builder)
 		NAME_None,
 		LOCTEXT("Export", "Export"),
 		LOCTEXT("ExportTooltip", "Export Animation"),
-		FSlateIcon(FEditorStyle::GetAppStyleSetName(), "Icons.Export")
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Export")
 	);
 }
 
@@ -286,6 +287,16 @@ USkeleton* UAnimationToolkitEditorLibrary::GetSelectedSkeleton()
 	return nullptr;
 }
 
+void UAnimationToolkitEditorLibrary::OpenImportDialog(UObject* WorldContextObject)
+{
+	ShowNotification(TEXT("Import Animation"));
+}
+
+void UAnimationToolkitEditorLibrary::OpenExportDialog(UObject* WorldContextObject, UAnimSequence* Animation)
+{
+	ShowNotification(TEXT("Export Animation"));
+}
+
 void UAnimationToolkitEditorLibrary::ShowNotification(const FString& Message, bool bSuccess)
 {
 	if (GEngine)
@@ -419,7 +430,7 @@ TSharedRef<SDockTab> FAnimationToolkitEditor::SpawnTab_Settings(const FSpawnTabA
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("ImportSettings", "Import Settings"))
-					.Font(FEditorStyle::GetFontStyle("LargeBoldFont"))
+					.Font(FAppStyle::GetFontStyle("LargeBoldFont"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -511,7 +522,7 @@ TSharedRef<SDockTab> FAnimationToolkitEditor::SpawnTab_Settings(const FSpawnTabA
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("ExportSettings", "Export Settings"))
-					.Font(FEditorStyle::GetFontStyle("LargeBoldFont"))
+					.Font(FAppStyle::GetFontStyle("LargeBoldFont"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -542,7 +553,7 @@ TSharedRef<SDockTab> FAnimationToolkitEditor::SpawnTab_Settings(const FSpawnTabA
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("BlendSettings", "Blend Settings"))
-					.Font(FEditorStyle::GetFontStyle("LargeBoldFont"))
+					.Font(FAppStyle::GetFontStyle("LargeBoldFont"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -627,7 +638,7 @@ TSharedRef<SDockTab> FAnimationToolkitEditor::SpawnTab_Optimize(const FSpawnTabA
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("QuickActions", "Quick Actions"))
-					.Font(FEditorStyle::GetFontStyle("LargeBoldFont"))
+					.Font(FAppStyle::GetFontStyle("LargeBoldFont"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -735,7 +746,7 @@ TSharedRef<SDockTab> FAnimationToolkitEditor::SpawnTab_Optimize(const FSpawnTabA
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("SelectedAnimations", "Selected Animations"))
-					.Font(FEditorStyle::GetFontStyle("LargeBoldFont"))
+					.Font(FAppStyle::GetFontStyle("LargeBoldFont"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()

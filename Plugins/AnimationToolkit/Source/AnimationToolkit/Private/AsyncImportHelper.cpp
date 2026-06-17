@@ -12,6 +12,7 @@ UAsyncImportHelper* UAsyncImportHelper::StartAsyncImport(
 	EAnimationImportFormat Format)
 {
 	UAsyncImportHelper* Helper = NewObject<UAsyncImportHelper>();
+	Helper->AddToRoot();
 
 	if (Helper)
 	{
@@ -32,8 +33,6 @@ UAsyncImportHelper* UAsyncImportHelper::StartAsyncImport(
 
 void UAsyncImportHelper::ExecuteImport()
 {
-	OnImportProgress.Broadcast(0.0f);
-
 	CachedResult = UAnimationImporter::ImportAnimation(
 		nullptr,
 		ImportFilePath,
@@ -43,14 +42,21 @@ void UAsyncImportHelper::ExecuteImport()
 
 	bIsImporting = false;
 
-	OnImportProgress.Broadcast(1.0f);
+	AsyncTask(ENamedThreads::GameThread, [this]()
+	{
+		OnImportProgress.Broadcast(0.0f);
 
-	if (CachedResult.bSuccess)
-	{
-		OnImportComplete.Broadcast(true, TEXT("Import successful"));
-	}
-	else
-	{
-		OnImportComplete.Broadcast(false, CachedResult.ErrorMessage);
-	}
+		OnImportProgress.Broadcast(1.0f);
+
+		if (CachedResult.bSuccess)
+		{
+			OnImportComplete.Broadcast(true, TEXT("Import successful"));
+		}
+		else
+		{
+			OnImportComplete.Broadcast(false, CachedResult.ErrorMessage);
+		}
+
+		RemoveFromRoot();
+	});
 }

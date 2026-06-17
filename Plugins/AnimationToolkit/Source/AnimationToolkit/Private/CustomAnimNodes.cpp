@@ -49,9 +49,16 @@ void UAnimNode_SequencePlayer::NativeUpdateAnimation(float DeltaSeconds)
 
 	if (bLoop)
 	{
-		while (CurrentTime >= Duration)
+		if (Duration > 0.0f)
 		{
-			CurrentTime -= Duration;
+			while (CurrentTime >= Duration)
+			{
+				CurrentTime -= Duration;
+			}
+		}
+		else
+		{
+			CurrentTime = 0.0f;
 		}
 	}
 	else if (CurrentTime >= Duration)
@@ -180,7 +187,12 @@ void UAnimNode_RandomAnimation::NativeUpdateAnimation(float DeltaSeconds)
 		float Duration = CurrentAnim->GetSequenceLength();
 		if (Duration > 0.0f)
 		{
-			PlayRandomAnimation();
+			RandomPlayTimer += DeltaSeconds;
+			if (RandomPlayTimer >= Duration)
+			{
+				RandomPlayTimer = 0.0f;
+				PlayRandomAnimation();
+			}
 		}
 	}
 }
@@ -257,7 +269,14 @@ void UAnimNode_AnimationQueue::NativeUpdateAnimation(float DeltaSeconds)
 
 	if (bIsCrossfading)
 	{
-		CrossfadeWeight += DeltaSeconds / CrossfadeTime;
+		if (CrossfadeTime > 0.0f)
+		{
+			CrossfadeWeight += DeltaSeconds / CrossfadeTime;
+		}
+		else
+		{
+			CrossfadeWeight = 1.0f;
+		}
 
 		if (CrossfadeWeight >= 1.0f)
 		{
@@ -347,6 +366,7 @@ void UAnimNode_Retarget::PerformRetarget()
 	if (RetargetedAnimation)
 	{
 		RetargetedAnimation->SetSkeleton(TargetSkeleton);
+		RetargetedAnimation->GetEditableRawAnimationData().Tracks.SetNum(TargetRefSkeleton.GetNum());
 
 		for (int32 SourceBoneIdx = 0; SourceBoneIdx < SourceRefSkeleton.GetNum(); SourceBoneIdx++)
 		{
@@ -390,7 +410,6 @@ void UAnimNode_Retarget::PerformRetarget()
 			}
 		}
 
-		RetargetedAnimation->SetRawSerializationFormatDuration(Duration);
 		RetargetedAnimation->MarkPackageDirty();
 	}
 }
@@ -476,7 +495,7 @@ void UAnimNode_Compress::PerformCompress()
 
 		for (int32 TrackIdx = 0; TrackIdx < NumTracks; TrackIdx++)
 		{
-			FRawAnimSequenceTrack& RawTrack = SourceAnimation->GetRawAnimationData().Tracks[TrackIdx];
+			const FRawAnimSequenceTrack& RawTrack = SourceAnimation->GetRawAnimationData().Tracks[TrackIdx];
 			FRawAnimSequenceTrack& NewTrack = CompressedAnimation->GetEditableRawAnimationData().Tracks[TrackIdx];
 
 			if (bCompressTranslation && RawTrack.PosKeys.Num() > 0)
@@ -537,7 +556,6 @@ void UAnimNode_Compress::PerformCompress()
 			}
 		}
 
-		CompressedAnimation->SetRawSerializationFormatDuration(Duration);
 		CompressedAnimation->MarkPackageDirty();
 	}
 }

@@ -5,7 +5,6 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/BlendSpace.h"
-#include "AnimationNode_Custom.h"
 #include "CustomAnimNodes.generated.h"
 
 UCLASS(BlueprintType, Blueprintable)
@@ -139,6 +138,7 @@ public:
 private:
 	int32 CurrentIndex = -1;
 	float DelayTimer = 0.0f;
+	float RandomPlayTimer = 0.0f;
 	bool bWaiting = false;
 };
 

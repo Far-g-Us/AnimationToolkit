@@ -12,7 +12,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
-static TMap<UObject*, TArray<FName>> AnimationTagsMap;
+static TMap<TWeakObjectPtr<UObject>, TArray<FName>> AnimationTagsMap;
 static FOnAnimationProgress GlobalProgressCallback;
 
 UAnimSequence* UAnimationLibrary::CreateAnimation(
@@ -281,10 +281,7 @@ bool UAnimationLibrary::AddCurveToAnimSequence(UAnimSequence* AnimSequence, cons
 		return false;
 	}
 
-	FRawCurveTracks::CurveType CurveType = FRawCurveTracks::CurveType::FloatCurve;
-
-	AnimSequence->GetCurveData().FloatCurves.Add();
-
+	AnimSequence->MarkPackageDirty();
 	return true;
 }
 
@@ -504,7 +501,12 @@ bool UAnimationLibrary::CompressAnimation(
 		return false;
 	}
 
-	FRawAnimSequenceTrack& RawTrack = AnimSequence->GetRawAnimationData()[0];
+	if (AnimSequence->GetRawAnimationData().Tracks.Num() == 0)
+	{
+		return false;
+	}
+
+	FRawAnimSequenceTrack& RawTrack = AnimSequence->GetRawAnimationData().Tracks[0];
 
 	if (Settings.bCompressTranslation)
 	{
@@ -648,6 +650,11 @@ UAnimSequence* UAnimationLibrary::BlendAnimations(
 		return nullptr;
 	}
 
+	if (!Animations[0])
+	{
+		return nullptr;
+	}
+
 	int32 FrameCount = Animations[0]->GetNumberOfSampledKeys();
 	float Duration = Animations[0]->GetSequenceLength();
 
@@ -674,13 +681,22 @@ UAnimSequence* UAnimationLibrary::BlendAnimations(
 			for (int32 i = 0; i < Animations.Num(); i++)
 			{
 				float Weight = Weights[i];
-				if (Weight > 0.0f && Animations[i])
+				float AnimDuration = Animations[i] ? Animations[i]->GetSequenceLength() : 0.0f;
+				if (Weight > 0.0f && Animations[i] && AnimDuration > 0.0f)
 				{
-					float NormalizedTime = FMath::Fmod(Time, Animations[i]->GetSequenceLength());
-					float Alpha = NormalizedTime / Animations[i]->GetSequenceLength();
-					int32 SampleIndex = FMath::Clamp((int32)(Alpha * (Animations[i]->GetNumberOfSampledKeys() - 1)), 0, Animations[i]->GetNumberOfSampledKeys() - 1);
+					float NormalizedTime = FMath::Fmod(Time, AnimDuration);
+					float Alpha = NormalizedTime / AnimDuration;
+					int32 NumKeys = Animations[i]->GetNumberOfSampledKeys();
+					int32 SampleIndex = FMath::Clamp((int32)(Alpha * (NumKeys - 1)), 0, FMath::Max(NumKeys - 1, 0));
 
-					FTransform SampleTransform = Animations[i]->GetBoneTransform(BoneIndex, SampleIndex);
+					int32 AnimBoneIndex = Animations[i]->GetSkeleton() ?
+						Animations[i]->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName) : INDEX_NONE;
+					if (AnimBoneIndex == INDEX_NONE)
+					{
+						continue;
+					}
+
+					FTransform SampleTransform = Animations[i]->GetBoneTransform(AnimBoneIndex, SampleIndex);
 
 					BlendedLocation += SampleTransform.GetLocation() * Weight;
 					FQuat SampleQuat = SampleTransform.GetRotation();
@@ -724,11 +740,14 @@ UAnimSequence* UAnimationLibrary::CrossfadeAnimations(
 
 	float FromDuration = (FromEndTime > 0.0f) ? FromEndTime : From->GetSequenceLength();
 	float ToDuration = To->GetSequenceLength();
-	float TotalDuration = FromDuration + ToDuration - CrossfadeDuration;
+	float TotalDuration = FMath::Max(0.0f, FromDuration + ToDuration - CrossfadeDuration);
 
 	TArray<FAnimationTrackData> CrossfadeTracks;
 
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+
+	int32 FromBoneCount = From->GetSkeleton() ? From->GetSkeleton()->GetReferenceSkeleton().GetNum() : 0;
+	int32 ToBoneCount = To->GetSkeleton() ? To->GetSkeleton()->GetReferenceSkeleton().GetNum() : 0;
 
 	for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); BoneIndex++)
 	{
@@ -738,6 +757,11 @@ UAnimSequence* UAnimationLibrary::CrossfadeAnimations(
 
 		int32 FrameCount = FMath::CeilToInt(TotalDuration * 30.0f);
 
+		int32 FromBoneIdx = From->GetSkeleton() ?
+			From->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName) : INDEX_NONE;
+		int32 ToBoneIdx = To->GetSkeleton() ?
+			To->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName) : INDEX_NONE;
+
 		for (int32 Frame = 0; Frame < FrameCount; Frame++)
 		{
 			float Time = (float)Frame / 30.0f;
@@ -745,16 +769,19 @@ UAnimSequence* UAnimationLibrary::CrossfadeAnimations(
 			FTransform FromTransform = FTransform::Identity;
 			FTransform ToTransform = FTransform::Identity;
 
-			float FromAlpha = FMath::Clamp(Time / FromDuration, 0.0f, 1.0f);
-			int32 FromSampleIndex = FMath::Clamp((int32)(FromAlpha * (From->GetNumberOfSampledKeys() - 1)), 0, From->GetNumberOfSampledKeys() - 1);
-			FromTransform = From->GetBoneTransform(BoneIndex, FromSampleIndex);
+			if (FromBoneIdx != INDEX_NONE)
+			{
+				float FromAlpha = FMath::Clamp(Time / FromDuration, 0.0f, 1.0f);
+				int32 FromSampleIndex = FMath::Clamp((int32)(FromAlpha * (From->GetNumberOfSampledKeys() - 1)), 0, From->GetNumberOfSampledKeys() - 1);
+				FromTransform = From->GetBoneTransform(FromBoneIdx, FromSampleIndex);
+			}
 
-			if (Time >= FromDuration - CrossfadeDuration)
+			if (Time >= FromDuration - CrossfadeDuration && ToBoneIdx != INDEX_NONE)
 			{
 				float ToTime = Time - (FromDuration - CrossfadeDuration);
 				float ToAlpha = FMath::Clamp(ToTime / ToDuration, 0.0f, 1.0f);
 				int32 ToSampleIndex = FMath::Clamp((int32)(ToAlpha * (To->GetNumberOfSampledKeys() - 1)), 0, To->GetNumberOfSampledKeys() - 1);
-				ToTransform = To->GetBoneTransform(BoneIndex, ToSampleIndex);
+				ToTransform = To->GetBoneTransform(ToBoneIdx, ToSampleIndex);
 			}
 
 			float BlendAlpha = 0.0f;
@@ -803,10 +830,18 @@ UAnimSequence* UAnimationLibrary::MirrorAnimation(
 		FAnimationTrackData Track;
 		Track.TrackName = BoneName;
 
+		int32 SourceBoneIdx = SourceAnimation->GetSkeleton() ?
+			SourceAnimation->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName) : INDEX_NONE;
+
 		for (int32 Frame = 0; Frame < FrameCount; Frame++)
 		{
-			float Alpha = (float)Frame / (FrameCount - 1);
-			FTransform SampleTransform = SourceAnimation->GetBoneTransform(BoneIndex, Frame);
+			float Alpha = (FrameCount > 1) ? (float)Frame / (FrameCount - 1) : 0.0f;
+
+			FTransform SampleTransform = FTransform::Identity;
+			if (SourceBoneIdx != INDEX_NONE)
+			{
+				SampleTransform = SourceAnimation->GetBoneTransform(SourceBoneIdx, Frame);
+			}
 
 			FVector Location = SampleTransform.GetLocation();
 			FQuat Rotation = SampleTransform.GetRotation();
@@ -892,7 +927,7 @@ bool UAnimationLibrary::ExportAnimationBVH(UAnimSequence* AnimSequence, const FS
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
 	int32 NumFrames = AnimSequence->GetNumberOfSampledKeys();
 	float Duration = AnimSequence->GetSequenceLength();
-	float FrameRate = (NumFrames > 1) ? (NumFrames - 1) / Duration : 30.0f;
+	float FrameRate = (NumFrames > 1 && Duration > 0.0f) ? (NumFrames - 1) / Duration : 30.0f;
 
 	FString BVHContent;
 
@@ -1206,14 +1241,35 @@ bool UAnimationLibrary::AddBoneKeyframe(
 		return false;
 	}
 
-	return true;
+	if (BoneIdx < Animation->GetEditableRawAnimationData().Tracks.Num())
+	{
+		FRawAnimSequenceTrack& Track = Animation->GetEditableRawAnimationData().Tracks[BoneIdx];
+
+		int32 InsertIdx = 0;
+		for (int32 i = 0; i < Track.PosKeys.Num(); i++)
+		{
+			if (Time > (float)i / (float)FMath::Max(1, Track.PosKeys.Num() - 1))
+			{
+				InsertIdx = i + 1;
+			}
+		}
+
+		Track.PosKeys.Insert(Transform.GetLocation(), InsertIdx);
+		Track.RotKeys.Insert(Transform.GetRotation(), InsertIdx);
+		Track.ScaleKeys.Insert(Transform.GetScale3D(), InsertIdx);
+
+		Animation->MarkPackageDirty();
+		return true;
+	}
+
+	return false;
 }
 
 int32 UAnimationLibrary::AddKeyframesBatch(
 	UAnimSequence* Animation,
 	const TArray<FAnimationKeyframe>& Keyframes)
 {
-	if (!Animation)
+	if (!Animation || Keyframes.Num() == 0)
 	{
 		return 0;
 	}
@@ -1231,7 +1287,39 @@ bool UAnimationLibrary::RemoveBoneKeyframe(
 		return false;
 	}
 
-	return true;
+	USkeleton* Skeleton = Animation->GetSkeleton();
+	if (!Skeleton)
+	{
+		return false;
+	}
+
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+	int32 BoneIdx = RefSkeleton.FindBoneIndex(BoneName);
+	if (BoneIdx == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (BoneIdx < Animation->GetEditableRawAnimationData().Tracks.Num())
+	{
+		FRawAnimSequenceTrack& Track = Animation->GetEditableRawAnimationData().Tracks[BoneIdx];
+
+		if (Track.PosKeys.Num() > 1)
+		{
+			int32 RemoveIdx = FMath::Clamp(
+				FMath::RoundToInt(Time * (Track.PosKeys.Num() - 1)),
+				0, Track.PosKeys.Num() - 1);
+
+			Track.PosKeys.RemoveAt(RemoveIdx);
+			Track.RotKeys.RemoveAt(RemoveIdx);
+			Track.ScaleKeys.RemoveAt(RemoveIdx);
+
+			Animation->MarkPackageDirty();
+			return true;
+		}
+	}
+
+	return false;
 }
 
 FTransform UAnimationLibrary::GetBoneTransformAtTime(
@@ -1258,7 +1346,20 @@ FTransform UAnimationLibrary::GetBoneTransformAtTime(
 		return FTransform::Identity;
 	}
 
-	return RefSkeleton.GetBoneTransform(BoneIdx);
+	int32 NumFrames = Animation->GetNumberOfSampledKeys();
+	float Duration = Animation->GetSequenceLength();
+
+	if (NumFrames <= 1 || Duration <= 0.0f)
+	{
+		return Animation->GetBoneTransform(BoneIdx, 0);
+	}
+
+	float NormalizedTime = FMath::Clamp(Time / Duration, 0.0f, 1.0f);
+	int32 SampleIndex = FMath::Clamp(
+		FMath::RoundToInt(NormalizedTime * (NumFrames - 1)),
+		0, NumFrames - 1);
+
+	return Animation->GetBoneTransform(BoneIdx, SampleIndex);
 }
 
 UAnimSequence* UAnimationLibrary::RetargetSpeed(
@@ -1266,19 +1367,52 @@ UAnimSequence* UAnimationLibrary::RetargetSpeed(
 	UAnimSequence* SourceAnimation,
 	float SpeedMultiplier)
 {
-	if (!WorldContextObject || !SourceAnimation)
+	if (!WorldContextObject || !SourceAnimation || SpeedMultiplier <= 0.0f)
+	{
+		return nullptr;
+	}
+
+	USkeleton* Skeleton = SourceAnimation->GetSkeleton();
+	if (!Skeleton)
 	{
 		return nullptr;
 	}
 
 	float NewDuration = SourceAnimation->GetSequenceLength() / SpeedMultiplier;
+	int32 SourceFrameCount = SourceAnimation->GetNumberOfSampledKeys();
+	int32 NewFrameCount = FMath::Max(1, FMath::CeilToInt(NewDuration * 30.0f));
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
 
 	TArray<FAnimationTrackData> Tracks;
+
+	for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); BoneIndex++)
+	{
+		FAnimationTrackData Track;
+		Track.TrackName = RefSkeleton.GetBoneName(BoneIndex);
+
+		for (int32 Frame = 0; Frame < NewFrameCount; Frame++)
+		{
+			float NormalizedTime = (NewFrameCount > 1) ? (float)Frame / (NewFrameCount - 1) : 0.0f;
+			float SourceTime = NormalizedTime * SourceAnimation->GetSequenceLength();
+			int32 SourceSampleIdx = FMath::Clamp(
+				FMath::RoundToInt(NormalizedTime * (SourceFrameCount - 1)),
+				0, FMath::Max(SourceFrameCount - 1, 0));
+
+			FTransform SampleTransform = SourceAnimation->GetBoneTransform(BoneIndex, SourceSampleIdx);
+
+			FAnimationKeyframe Keyframe;
+			Keyframe.Time = (float)Frame / 30.0f;
+			Keyframe.Transform = SampleTransform;
+			Track.Keyframes.Add(Keyframe);
+		}
+
+		Tracks.Add(Track);
+	}
 
 	return CreateAnimation(
 		WorldContextObject,
 		SourceAnimation->GetName() + TEXT("_Speed"),
-		SourceAnimation->GetSkeleton(),
+		Skeleton,
 		Tracks,
 		NewDuration,
 		30.0f
@@ -1296,6 +1430,12 @@ UAnimSequence* UAnimationLibrary::CropAnimation(
 		return nullptr;
 	}
 
+	USkeleton* Skeleton = SourceAnimation->GetSkeleton();
+	if (!Skeleton)
+	{
+		return nullptr;
+	}
+
 	float AnimDuration = SourceAnimation->GetSequenceLength();
 	StartTime = FMath::Clamp(StartTime, 0.0f, AnimDuration);
 	EndTime = FMath::Clamp(EndTime, StartTime, AnimDuration);
@@ -1306,12 +1446,41 @@ UAnimSequence* UAnimationLibrary::CropAnimation(
 		return nullptr;
 	}
 
+	int32 SourceFrameCount = SourceAnimation->GetNumberOfSampledKeys();
+	int32 NewFrameCount = FMath::Max(1, FMath::CeilToInt(NewDuration * 30.0f));
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+
 	TArray<FAnimationTrackData> Tracks;
+
+	for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); BoneIndex++)
+	{
+		FAnimationTrackData Track;
+		Track.TrackName = RefSkeleton.GetBoneName(BoneIndex);
+
+		for (int32 Frame = 0; Frame < NewFrameCount; Frame++)
+		{
+			float NormalizedTime = (NewFrameCount > 1) ? (float)Frame / (NewFrameCount - 1) : 0.0f;
+			float SourceTime = StartTime + NormalizedTime * NewDuration;
+			float SourceNormalized = (AnimDuration > 0.0f) ? SourceTime / AnimDuration : 0.0f;
+			int32 SourceSampleIdx = FMath::Clamp(
+				FMath::RoundToInt(SourceNormalized * (SourceFrameCount - 1)),
+				0, FMath::Max(SourceFrameCount - 1, 0));
+
+			FTransform SampleTransform = SourceAnimation->GetBoneTransform(BoneIndex, SourceSampleIdx);
+
+			FAnimationKeyframe Keyframe;
+			Keyframe.Time = (float)Frame / 30.0f;
+			Keyframe.Transform = SampleTransform;
+			Track.Keyframes.Add(Keyframe);
+		}
+
+		Tracks.Add(Track);
+	}
 
 	return CreateAnimation(
 		WorldContextObject,
 		SourceAnimation->GetName() + TEXT("_Cropped"),
-		SourceAnimation->GetSkeleton(),
+		Skeleton,
 		Tracks,
 		NewDuration,
 		30.0f
@@ -1328,6 +1497,34 @@ bool UAnimationLibrary::ApplyRootOffset(
 		return false;
 	}
 
+	USkeleton* Skeleton = Animation->GetSkeleton();
+	if (!Skeleton)
+	{
+		return false;
+	}
+
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+	int32 RootBoneIdx = RefSkeleton.FindBoneIndex(FName("root"));
+	if (RootBoneIdx == INDEX_NONE && RefSkeleton.GetNum() > 0)
+	{
+		RootBoneIdx = 0;
+	}
+
+	if (RootBoneIdx == INDEX_NONE || RootBoneIdx >= Animation->GetEditableRawAnimationData().Tracks.Num())
+	{
+		return false;
+	}
+
+	FRawAnimSequenceTrack& RootTrack = Animation->GetEditableRawAnimationData().Tracks[RootBoneIdx];
+	FQuat RotationQuat = RotationOffset.Quaternion();
+
+	for (int32 i = 0; i < RootTrack.PosKeys.Num(); i++)
+	{
+		RootTrack.PosKeys[i] = RootTrack.PosKeys[i] + LocationOffset;
+		RootTrack.RotKeys[i] = RotationQuat * RootTrack.RotKeys[i];
+	}
+
+	Animation->MarkPackageDirty();
 	return true;
 }
 
@@ -1342,8 +1539,22 @@ bool UAnimationLibrary::SaveAnimationAsAsset(
 	}
 
 	FString FullPath = PackagePath / AssetName;
+	UPackage* Package = CreatePackage(nullptr, *FullPath);
+	if (!Package)
+	{
+		return false;
+	}
 
-	return true;
+	UAnimSequence* SavedAnim = DuplicateObject<UAnimSequence>(Animation, Package, *AssetName);
+	if (!SavedAnim)
+	{
+		return false;
+	}
+
+	SavedAnim->SetFlags(RF_Public | RF_Standalone);
+	Package->MarkPackageDirty();
+
+	return FAssetData(SavedAnim).IsValid();
 }
 
 UAnimSequence* UAnimationLibrary::DuplicateAnimation(
@@ -1354,7 +1565,8 @@ UAnimSequence* UAnimationLibrary::DuplicateAnimation(
 		return nullptr;
 	}
 
-	return SourceAnimation;
+	return DuplicateObject<UAnimSequence>(SourceAnimation, SourceAnimation->GetOuter(),
+		*FString::Printf(TEXT("%s_Duplicate"), *SourceAnimation->GetName()));
 }
 
 bool UAnimationLibrary::IsAnimationCompatibleWithSkeleton(

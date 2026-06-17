@@ -3,7 +3,7 @@
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimInstance.h"
-#include "EditorStyleSet.h"
+#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "AnimationToolkitPreview"
 
@@ -14,10 +14,6 @@ UAnimationPreviewManager* UAnimationPreviewManager::GetPreviewManager()
 	if (!Instance.IsValid() || Instance.Get() == nullptr)
 	{
 		Instance = NewObject<UAnimationPreviewManager>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
-		if (Instance.IsValid())
-		{
-			Instance->AddToRoot();
-		}
 	}
 	return Instance.Get();
 }
@@ -170,9 +166,16 @@ void SAnimationPreviewWidget::Tick(const FGeometry& AllottedGeometry, const doub
 
 		if (Manager->IsLooping())
 		{
-			while (NewPosition >= Duration)
+			if (Duration > 0.0f)
 			{
-				NewPosition -= Duration;
+				while (NewPosition >= Duration)
+				{
+					NewPosition -= Duration;
+				}
+			}
+			else
+			{
+				NewPosition = 0.0f;
 			}
 		}
 		else if (NewPosition >= Duration)
