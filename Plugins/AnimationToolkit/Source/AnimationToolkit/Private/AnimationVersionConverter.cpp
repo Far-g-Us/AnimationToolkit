@@ -1,8 +1,10 @@
 #include "AnimationVersionConverter.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
-#include "Animation/AnimData/AnimDataModel.h"
-#include "Animation/AnimSequence.h"
+#include "Animation/AnimData/IAnimationDataController.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/Package.h"
 
 TMap<FName, FName> UAnimationVersionConverter::GetBoneRenamesForVersion(
 	EEngineVersion SourceVersion, EEngineVersion TargetVersion)
@@ -316,7 +318,49 @@ void UAnimationVersionConverter::ApplyScaleToAnimation(UAnimSequence* Animation,
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("ApplyScaleToAnimation: Skipped per-bone scale adjustment (AddBoneTrack not available in UE5.5 runtime). Scale: %.2f"), ScaleMultiplier);
+	const IAnimationDataModel* Model = Animation->GetDataModel();
+	if (!Model)
+	{
+		return;
+	}
+
+	IAnimationDataController& Controller = Animation->GetController();
+	const TScriptInterface<IAnimationDataModel> ModelInterface = Controller.GetModelInterface();
+
+	Controller.OpenBracket(FText::FromString(FString::Printf(TEXT("Applying Scale %.2f"), ScaleMultiplier)), false);
+
+	const TArray<FBoneAnimationTrack>& Tracks = Model->GetBoneAnimationTracks();
+
+	for (const FBoneAnimationTrack& Track : Tracks)
+	{
+		const FRawAnimSequenceTrack& SrcRaw = Track.InternalTrackData;
+		const int32 NumPosKeys = SrcRaw.PosKeys.Num();
+
+		if (NumPosKeys == 0)
+		{
+			continue;
+		}
+
+		TArray<FVector3f> ScaledPosKeys;
+		ScaledPosKeys.SetNum(NumPosKeys);
+
+		for (int32 i = 0; i < NumPosKeys; ++i)
+		{
+			ScaledPosKeys[i] = SrcRaw.PosKeys[i] * static_cast<float>(ScaleMultiplier);
+		}
+
+		Controller.SetBoneTrackKeys(
+			Track.Name,
+			ScaledPosKeys,
+			SrcRaw.RotKeys,
+			SrcRaw.ScaleKeys,
+			false);
+	}
+
+	Controller.CloseBracket(false);
+
+	UE_LOG(LogTemp, Log, TEXT("ApplyScaleToAnimation: Applied scale %.2f to %d bone tracks"),
+		ScaleMultiplier, Tracks.Num());
 
 	Animation->MarkPackageDirty();
 }
@@ -329,7 +373,56 @@ void UAnimationVersionConverter::RenameBonesInAnimation(
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("RenameBonesInAnimation: Skipped per-bone track operations (AddBoneTrack not available in UE5.5 runtime). Renames requested: %d"), Renames.Num());
+	const IAnimationDataModel* Model = Animation->GetDataModel();
+	if (!Model)
+	{
+		return;
+	}
+
+	IAnimationDataController& Controller = Animation->GetController();
+	const TScriptInterface<IAnimationDataModel> ModelInterface = Controller.GetModelInterface();
+
+	Controller.OpenBracket(FText::FromString(FString::Printf(TEXT("Renaming %d Bones"), Renames.Num())), false);
+
+	const TArray<FBoneAnimationTrack>& Tracks = Model->GetBoneAnimationTracks();
+	int32 RenamedCount = 0;
+
+	for (const FBoneAnimationTrack& Track : Tracks)
+	{
+		const FName* NewName = Renames.Find(Track.Name);
+		if (!NewName)
+		{
+			continue;
+		}
+
+		if (*NewName == Track.Name)
+		{
+			continue;
+		}
+
+		const FRawAnimSequenceTrack& SrcRaw = Track.InternalTrackData;
+
+		Controller.AddBoneCurve(*NewName, false);
+
+		Controller.SetBoneTrackKeys(
+			*NewName,
+			SrcRaw.PosKeys,
+			SrcRaw.RotKeys,
+			SrcRaw.ScaleKeys,
+			false);
+
+		Controller.RemoveBoneTrack(Track.Name, false);
+
+		RenamedCount++;
+
+		UE_LOG(LogTemp, Log, TEXT("RenameBonesInAnimation: Renamed bone '%s' -> '%s'"),
+			*Track.Name.ToString(), *NewName->ToString());
+	}
+
+	Controller.CloseBracket(false);
+
+	UE_LOG(LogTemp, Log, TEXT("RenameBonesInAnimation: Renamed %d of %d requested bones"),
+		RenamedCount, Renames.Num());
 
 	Animation->MarkPackageDirty();
 }

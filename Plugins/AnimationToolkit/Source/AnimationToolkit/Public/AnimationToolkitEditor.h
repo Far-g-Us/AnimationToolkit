@@ -107,6 +107,7 @@ class ANIMATIONTOOLKIT_API UAnimationToolkitEditorLibrary : public UBlueprintFun
 {
 	GENERATED_BODY()
 
+public:
 	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Editor", meta = (WorldContext = "WorldContextObject"))
 	static void OpenImportDialog(UObject* WorldContextObject);
 

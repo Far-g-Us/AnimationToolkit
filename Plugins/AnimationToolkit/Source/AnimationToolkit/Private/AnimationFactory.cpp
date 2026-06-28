@@ -7,6 +7,7 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/Skeleton.h"
+#include "Animation/AnimData/IAnimationDataController.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
@@ -43,6 +44,53 @@ UAnimSequence* UAnimationFactory::CreateAnimSequence(
 
 	AnimSequence->SetSkeleton(Skeleton);
 	AnimSequence->SetPreviewMesh(nullptr);
+
+	IAnimationDataController& Controller = AnimSequence->GetController();
+
+	const float SafeFrameRate = FMath::Max(0.01f, FrameRate);
+
+	for (const FAnimationTrackData& Track : Tracks)
+	{
+		Controller.AddBoneCurve(Track.TrackName, false);
+		FRawAnimSequenceTrack RawTrack;
+		const int32 NumFrames = FMath::Max(1, FMath::RoundToInt(Duration * SafeFrameRate));
+
+		RawTrack.PosKeys.SetNum(NumFrames);
+		RawTrack.RotKeys.SetNum(NumFrames);
+		RawTrack.ScaleKeys.SetNum(NumFrames);
+
+		for (int32 i = 0; i < NumFrames; ++i)
+		{
+			const float Time = (SafeFrameRate > 0.0f) ? (static_cast<float>(i) / SafeFrameRate) : 0.0f;
+
+			FTransform InterpolatedTransform = FTransform::Identity;
+			if (Track.Keyframes.Num() > 0)
+			{
+				if (Track.Keyframes.Num() == 1)
+				{
+					InterpolatedTransform = Track.Keyframes[0].Transform;
+				}
+				else
+				{
+					const float SafeDuration = FMath::Max(0.001f, Duration);
+					const float NormalizedTime = FMath::Clamp(Time / SafeDuration, 0.0f, 1.0f);
+					const float ScaledTime = NormalizedTime * (Track.Keyframes.Num() - 1);
+					const int32 IndexA = FMath::FloorToInt(ScaledTime);
+					const int32 IndexB = FMath::Min(IndexA + 1, Track.Keyframes.Num() - 1);
+					const float Alpha = ScaledTime - static_cast<float>(IndexA);
+
+					InterpolatedTransform = Track.Keyframes[IndexA].Transform;
+					InterpolatedTransform.BlendWith(Track.Keyframes[IndexB].Transform, Alpha);
+				}
+			}
+
+			RawTrack.PosKeys[i] = FVector3f(InterpolatedTransform.GetTranslation());
+			RawTrack.RotKeys[i] = FQuat4f(InterpolatedTransform.GetRotation());
+			RawTrack.ScaleKeys[i] = FVector3f(InterpolatedTransform.GetScale3D());
+		}
+
+		Controller.SetBoneTrackKeys(Track.TrackName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys, false);
+	}
 
 	AnimSequence->MarkPackageDirty();
 	FAssetRegistryModule::AssetCreated(AnimSequence);

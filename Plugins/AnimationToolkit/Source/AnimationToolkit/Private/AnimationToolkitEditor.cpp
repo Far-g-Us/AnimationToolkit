@@ -130,37 +130,170 @@ void UAnimationToolkitEditorModule::OnImportClicked()
 
 void UAnimationToolkitEditorModule::OnExportClicked()
 {
-	OnImportClicked();
+	TArray<UAnimSequence*> Animations = UAnimationToolkitEditorLibrary::GetSelectedAnimations();
+	if (Animations.Num() == 0)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoSelection", "No animations selected. Select one or more animations in the Content Browser."));
+		return;
+	}
+	for (UAnimSequence* Anim : Animations)
+	{
+		if (Anim)
+		{
+			UAnimationToolkitEditorLibrary::OpenExportDialog(GEditor->GetEditorWorldContext().World(), Anim);
+		}
+	}
 }
 
 void UAnimationToolkitEditorModule::OnBlendClicked()
 {
-	OnImportClicked();
+	TArray<UAnimSequence*> Animations = UAnimationToolkitEditorLibrary::GetSelectedAnimations();
+	if (Animations.Num() < 2)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("BlendNeedTwo", "Select at least two animations to blend."));
+		return;
+	}
+
+	UAnimationToolkitEditorSettings* Settings = UAnimationToolkitEditorLibrary::GetEditorSettings();
+	const FString NewName = Animations[0]->GetName() + TEXT("_Blended");
+	USkeleton* Skeleton = UAnimationToolkitEditorLibrary::GetSelectedSkeleton();
+
+	TArray<float> Weights;
+	const float Weight = 1.0f / Animations.Num();
+	for (int32 i = 0; i < Animations.Num(); ++i)
+	{
+		Weights.Add(Weight);
+	}
+
+	UAnimationLibrary::BlendAnimations(
+		GEditor->GetEditorWorldContext().World(),
+		NewName,
+		Skeleton,
+		Animations,
+		Weights
+	);
 }
 
 void UAnimationToolkitEditorModule::OnMirrorClicked()
 {
-	OnImportClicked();
+	TArray<UAnimSequence*> Animations = UAnimationToolkitEditorLibrary::GetSelectedAnimations();
+	if (Animations.Num() == 0)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoSelection", "No animations selected. Select one or more animations in the Content Browser."));
+		return;
+	}
+
+	for (UAnimSequence* Anim : Animations)
+	{
+		if (Anim)
+		{
+			const FString NewName = Anim->GetName() + TEXT("_Mirrored");
+			USkeleton* Skeleton = Anim->GetSkeleton();
+			UAnimationLibrary::MirrorAnimation(
+				GEditor->GetEditorWorldContext().World(),
+				NewName,
+				Skeleton,
+				Anim,
+				EMirrorFlags::X
+			);
+		}
+	}
 }
 
 void UAnimationToolkitEditorModule::OnCompressClicked()
 {
-	OnImportClicked();
+	TArray<UAnimSequence*> Animations = UAnimationToolkitEditorLibrary::GetSelectedAnimations();
+	if (Animations.Num() == 0)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoSelection", "No animations selected. Select one or more animations in the Content Browser."));
+		return;
+	}
+
+	UAnimationToolkitEditorSettings* Settings = UAnimationToolkitEditorLibrary::GetEditorSettings();
+	const float Threshold = Settings ? Settings->DefaultCompressionThreshold : 0.01f;
+
+	FAnimationCompressionSettings CompressSettings = UAnimationLibrary::MakeCompressionSettings(
+		true, true, true,
+		Threshold, 0.1f, 0.01f
+	);
+
+	const int32 Compressed = UAnimationLibrary::BatchCompressAnimations(Animations, CompressSettings);
+	UE_LOG(LogTemp, Log, TEXT("OnCompressClicked: Compressed %d/%d animations"), Compressed, Animations.Num());
 }
 
 void UAnimationToolkitEditorModule::OnOptimizeClicked()
 {
-	OnImportClicked();
+	TArray<UAnimSequence*> Animations = UAnimationToolkitEditorLibrary::GetSelectedAnimations();
+	if (Animations.Num() == 0)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoSelection", "No animations selected. Select one or more animations in the Content Browser."));
+		return;
+	}
+
+	FAnimationCompressionSettings OptimizeSettings = UAnimationLibrary::MakeCompressionSettings(
+		true, true, true,
+		0.05f, 0.5f, 0.05f
+	);
+
+	const int32 Optimized = UAnimationLibrary::BatchCompressAnimations(Animations, OptimizeSettings);
+	UE_LOG(LogTemp, Log, TEXT("OnOptimizeClicked: Optimized %d/%d animations"), Optimized, Animations.Num());
 }
 
 void UAnimationToolkitEditorModule::OnRetargetClicked()
 {
-	OnImportClicked();
+	TArray<UAnimSequence*> Animations = UAnimationToolkitEditorLibrary::GetSelectedAnimations();
+	if (Animations.Num() == 0)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoSelection", "No animations selected. Select one or more animations in the Content Browser."));
+		return;
+	}
+
+	USkeleton* TargetSkeleton = UAnimationToolkitEditorLibrary::GetSelectedSkeleton();
+	if (!TargetSkeleton)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoSkeleton", "No target skeleton found. Select a skeleton or an animation with a valid skeleton."));
+		return;
+	}
+
+	FAnimationRetargetSettings RetargetSettings = UAnimationLibrary::MakeRetargetSettings(
+		EAnimationRetargetType::ByName,
+		TArray<FAnimationRetargetMapping>()
+	);
+
+	for (UAnimSequence* Anim : Animations)
+	{
+		if (Anim)
+		{
+			UAnimationLibrary::RetargetAnimation(
+				GEditor->GetEditorWorldContext().World(),
+				Anim,
+				TargetSkeleton,
+				RetargetSettings
+			);
+		}
+	}
 }
 
 void UAnimationToolkitEditorModule::OnBatchProcessClicked()
 {
-	OnImportClicked();
+	TArray<UAnimSequence*> Animations = UAnimationToolkitEditorLibrary::GetSelectedAnimations();
+	if (Animations.Num() == 0)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoSelection", "No animations selected. Select one or more animations in the Content Browser."));
+		return;
+	}
+
+	FAnimationCompressionSettings CompressSettings = UAnimationLibrary::MakeCompressionSettings(
+		true, true, true,
+		0.01f, 0.1f, 0.01f
+	);
+
+	const int32 Processed = UAnimationLibrary::BatchCompressAnimations(Animations, CompressSettings);
+	UE_LOG(LogTemp, Log, TEXT("OnBatchProcessClicked: Processed %d/%d animations"), Processed, Animations.Num());
+	UAnimationToolkitEditorLibrary::ShowNotification(
+		FString::Printf(TEXT("Batch processed %d/%d animations"), Processed, Animations.Num()),
+		Processed == Animations.Num()
+	);
 }
 
 void FAnimationToolkitEditorCommands::RegisterCommands()
@@ -321,7 +454,9 @@ void FAnimationToolkitEditor::InitEditor(const TArray<UObject*>& InObjects)
 				->AddTab("ImportTab", ETabState::OpenedTab)
 				->AddTab("ExportTab", ETabState::ClosedTab)
 				->AddTab("BlendTab", ETabState::ClosedTab)
+				->AddTab("MirrorTab", ETabState::ClosedTab)
 				->AddTab("CompressTab", ETabState::ClosedTab)
+				->AddTab("OptimizeTab", ETabState::ClosedTab)
 				->AddTab("RetargetTab", ETabState::ClosedTab)
 				->AddTab("BatchTab", ETabState::ClosedTab)));
 
@@ -353,8 +488,16 @@ void FAnimationToolkitEditor::RegisterTabSpawners(const TSharedRef<FTabManager>&
 		.SetDisplayName(LOCTEXT("BlendTabLabel", "Blend"))
 		.SetGroup(MenuRoot);
 
+	InTabManager->RegisterTabSpawner("MirrorTab", FOnSpawnTab::CreateSP(this, &FAnimationToolkitEditor::SpawnTab_Mirror))
+		.SetDisplayName(LOCTEXT("MirrorTabLabel", "Mirror"))
+		.SetGroup(MenuRoot);
+
 	InTabManager->RegisterTabSpawner("CompressTab", FOnSpawnTab::CreateSP(this, &FAnimationToolkitEditor::SpawnTab_Compress))
 		.SetDisplayName(LOCTEXT("CompressTabLabel", "Compress"))
+		.SetGroup(MenuRoot);
+
+	InTabManager->RegisterTabSpawner("OptimizeTab", FOnSpawnTab::CreateSP(this, &FAnimationToolkitEditor::SpawnTab_Optimize))
+		.SetDisplayName(LOCTEXT("OptimizeTabLabel", "Optimize"))
 		.SetGroup(MenuRoot);
 
 	InTabManager->RegisterTabSpawner("RetargetTab", FOnSpawnTab::CreateSP(this, &FAnimationToolkitEditor::SpawnTab_Retarget))
@@ -373,7 +516,9 @@ void FAnimationToolkitEditor::UnregisterTabSpawners(const TSharedRef<FTabManager
 	InTabManager->UnregisterTabSpawner("ImportTab");
 	InTabManager->UnregisterTabSpawner("ExportTab");
 	InTabManager->UnregisterTabSpawner("BlendTab");
+	InTabManager->UnregisterTabSpawner("MirrorTab");
 	InTabManager->UnregisterTabSpawner("CompressTab");
+	InTabManager->UnregisterTabSpawner("OptimizeTab");
 	InTabManager->UnregisterTabSpawner("RetargetTab");
 	InTabManager->UnregisterTabSpawner("BatchTab");
 }

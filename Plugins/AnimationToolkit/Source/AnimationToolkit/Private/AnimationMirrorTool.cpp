@@ -1,6 +1,8 @@
 #include "AnimationMirrorTool.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
+#include "Animation/AnimData/IAnimationDataController.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 
 UAnimSequence* UAnimationMirrorTool::MirrorAnimation(
 	UObject* WorldContextObject,
@@ -9,7 +11,63 @@ UAnimSequence* UAnimationMirrorTool::MirrorAnimation(
 	bool bMirrorTranslation,
 	bool bMirrorRotation)
 {
-	return nullptr;
+	if (!WorldContextObject || !SourceAnimation)
+	{
+		return nullptr;
+	}
+
+	const IAnimationDataModel* Model = SourceAnimation->GetDataModel();
+	if (!Model)
+	{
+		return nullptr;
+	}
+
+	const FString NewName = SourceAnimation->GetName() + TEXT("_Mirrored");
+	UAnimSequence* MirroredAnim = DuplicateObject<UAnimSequence>(SourceAnimation, SourceAnimation->GetOuter());
+	if (!MirroredAnim)
+	{
+		return nullptr;
+	}
+
+	IAnimationDataController& Controller = MirroredAnim->GetController();
+
+	const TArray<FBoneAnimationTrack>& Tracks = Model->GetBoneAnimationTracks();
+
+	for (const FBoneAnimationTrack& Track : Tracks)
+	{
+		const FRawAnimSequenceTrack& Raw = Track.InternalTrackData;
+
+		TArray<FVector3f> MirroredPosKeys = Raw.PosKeys;
+		TArray<FQuat4f> MirroredRotKeys = Raw.RotKeys;
+		TArray<FVector3f> MirroredScaleKeys = Raw.ScaleKeys;
+
+		if (bMirrorTranslation)
+		{
+			for (FVector3f& Pos : MirroredPosKeys)
+			{
+				Pos.X = -Pos.X;
+			}
+		}
+
+		if (bMirrorRotation)
+		{
+			for (FQuat4f& Rot : MirroredRotKeys)
+			{
+				Rot = FQuat4f(FQuat(-Rot.X, Rot.Y, Rot.Z, Rot.W));
+			}
+		}
+
+		if (MirroredPosKeys.Num() > 0 || MirroredRotKeys.Num() > 0)
+		{
+			Controller.SetBoneTrackKeys(Track.Name, MirroredPosKeys, MirroredRotKeys, MirroredScaleKeys, false);
+		}
+	}
+
+	MirroredAnim->MarkPackageDirty();
+	UE_LOG(LogTemp, Log, TEXT("AnimationMirrorTool: Mirrored '%s' → '%s' (%d tracks)"),
+		*SourceAnimation->GetName(), *NewName, Tracks.Num());
+
+	return MirroredAnim;
 }
 
 UAnimSequence* UAnimationMirrorTool::MirrorAnimationAxis(

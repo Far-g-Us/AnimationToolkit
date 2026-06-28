@@ -1,6 +1,7 @@
 #include "AnimSequenceCreator.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
+#include "Animation/AnimData/IAnimationDataController.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
@@ -36,6 +37,17 @@ UAnimSequence* UAnimSequenceCreator::CreateAnimSequence(
 	}
 
 	AnimSequence->SetSkeleton(Skeleton);
+
+	IAnimationDataController& Controller = AnimSequence->GetController();
+
+	const float SafeFrameRate = FMath::Max(0.01f, ClipData.FrameRate);
+
+	for (const FAnimationTrackData& Track : ClipData.Tracks)
+	{
+		Controller.AddBoneCurve(Track.TrackName, false);
+		FRawAnimSequenceTrack RawTrack = ConvertTrackData(Track, SafeFrameRate, ClipData.Duration);
+		Controller.SetBoneTrackKeys(Track.TrackName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys, false);
+	}
 
 	AnimSequence->MarkPackageDirty();
 	FAssetRegistryModule::AssetCreated(AnimSequence);
@@ -112,10 +124,16 @@ void UAnimSequenceCreator::ApplyTracksToAnimSequence(
 	}
 
 	const float SafeFrameRate = FMath::Max(0.01f, FrameRate);
+	const float Duration = AnimSequence->GetPlayLength();
+
+	IAnimationDataController& Controller = AnimSequence->GetController();
 
 	for (const FAnimationTrackData& Track : Tracks)
 	{
-		UE_LOG(LogTemp, Log, TEXT("ApplyTracksToAnimSequence: Track '%s' with %d keyframes"),
+		Controller.AddBoneCurve(Track.TrackName, false);
+		FRawAnimSequenceTrack RawTrack = ConvertTrackData(Track, SafeFrameRate, Duration);
+		Controller.SetBoneTrackKeys(Track.TrackName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys, false);
+		UE_LOG(LogTemp, Log, TEXT("ApplyTracksToAnimSequence: Applied Track '%s' with %d keyframes"),
 			*Track.TrackName.ToString(), Track.Keyframes.Num());
 	}
 

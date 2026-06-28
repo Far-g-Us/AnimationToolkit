@@ -146,6 +146,48 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
 	static TArray<FName> GetMappedTargetBones(const FBoneMappingResult& Result);
 
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
+	static TArray<FName> DetectSkeletonBones(USkeleton* Skeleton);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
+	static int32 GetSkeletonBoneCount(USkeleton* Skeleton);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
+	static bool HasBone(USkeleton* Skeleton, const FName& BoneName);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
+	static int32 GetBoneParentIndex(USkeleton* Skeleton, const FName& BoneName);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
+	static TArray<FName> GetBoneChildren(USkeleton* Skeleton, const FName& BoneName);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
+	static FString DetectBoneNamingConvention(USkeleton* Skeleton);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Bone Mapping")
+	static bool RenameSkeletonBone(USkeleton* Skeleton, const FName& OldName, const FName& NewName);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Bone Mapping")
+	static int32 RenameSkeletonBonesBatch(USkeleton* Skeleton, const TMap<FName, FName>& RenameMap);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Bone Mapping")
+	static bool RenameSkeletonBonesToConvention(USkeleton* Skeleton, const FString& TargetConvention);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
+	static FBoneMappingResult DetectAndMapSkeletonBones(USkeleton* SourceSkeleton, USkeleton* TargetSkeleton);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
+	static TArray<FString> GetBoneHierarchy(USkeleton* Skeleton, int32 RootIndex = -1);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
+	static bool IsSkeletonCompatible(USkeleton* SkeletonA, USkeleton* SkeletonB);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Toolkit|Bone Mapping")
+	static UAnimSequence* RemapAnimationToSkeleton(UAnimSequence* Animation, USkeleton* TargetSkeleton, bool bAutoDetect = true);
+
+	UFUNCTION(BlueprintPure, Category = "Animation Toolkit|Bone Mapping")
+	static TMap<FName, FName> FindBoneRenamingPairs(USkeleton* SourceSkeleton, USkeleton* TargetSkeleton);
+
 private:
 	static FString RemovePrefix(const FString& BoneName, const FString& Prefix);
 	static FString RemoveCommonPrefixes(const FString& BoneName);

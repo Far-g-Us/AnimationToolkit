@@ -1,6 +1,7 @@
 #include "BoneMappingTool.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
+#include "ReferenceSkeleton.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
@@ -299,15 +300,17 @@ FName UBoneMappingTool::FindBestMatch(
 	if (bTryFuzzy && BestMatch == NAME_None)
 	{
 		TArray<FString> TargetNames;
+		TArray<FString> NormalizedTargets;
 		for (int32 i = 0; i < NumTargetBones; ++i)
 		{
-			TargetNames.Add(TargetRef.GetBoneName(i).ToString());
+			const FString TargetStr = TargetRef.GetBoneName(i).ToString();
+			TargetNames.Add(TargetStr);
+			NormalizedTargets.Add(NormalizeBoneName(TargetStr));
 		}
-		const int32 BestIdx = FindBestFuzzyMatch(NormSource, TargetNames, 4);
+		const int32 BestIdx = FindBestFuzzyMatch(NormSource, NormalizedTargets, 4);
 		if (BestIdx != INDEX_NONE)
 		{
-			const int32 Dist = CalculateLevenshteinDistance(NormSource, NormalizeBoneName(TargetNames[BestIdx]));
-			const float FuzzyScore = FMath::Max(0.1f, 1.0f - (static_cast<float>(Dist) / 10.0f));
+			const float FuzzyScore = FMath::Max(0.1f, 1.0f - (static_cast<float>(CalculateLevenshteinDistance(NormSource, NormalizedTargets[BestIdx])) / 10.0f));
 			TryMatch(TargetNames[BestIdx], BestIdx, FuzzyScore);
 		}
 	}
@@ -427,7 +430,61 @@ UAnimSequence* UBoneMappingTool::RemapAnimationBones(
 		}
 	}
 
-	return AutoRemapAnimation(SourceAnimation, TargetSkeleton, EBoneMappingMethod::Exact, nullptr);
+	if (RemapTable.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BoneMappingTool: No bone mappings to apply"));
+		return SourceAnimation;
+	}
+
+	IAnimationDataController& Controller = SourceAnimation->GetController();
+	Controller.OpenBracket(LOCTEXT("RemapBones", "Remapping Bones"), false);
+
+	const int32 NumFrames = SourceAnimation->GetNumberOfSampledKeys();
+	const FFrameRate FrameRate = SourceAnimation->GetSamplingFrameRate();
+	const float SampleRate = FrameRate.IsValid() ? FrameRate.AsDecimal() : 30.0f;
+
+	for (const auto& Pair : RemapTable)
+	{
+		const FName& OldBoneName = Pair.Key;
+		const FName& NewBoneName = Pair.Value;
+
+		const int32 OldBoneIdx = SourceRef.FindBoneIndex(OldBoneName);
+		if (OldBoneIdx == INDEX_NONE)
+		{
+			continue;
+		}
+
+		const int32 NewBoneIdx = TargetRef.FindBoneIndex(NewBoneName);
+		if (NewBoneIdx == INDEX_NONE)
+		{
+			continue;
+		}
+
+		TArray<FVector3f> PositionKeys;
+		TArray<FQuat4f> RotationKeys;
+		TArray<FVector3f> ScaleKeys;
+		PositionKeys.Reserve(NumFrames);
+		RotationKeys.Reserve(NumFrames);
+		ScaleKeys.Reserve(NumFrames);
+
+		for (int32 Frame = 0; Frame < NumFrames; ++Frame)
+		{
+			const float Time = static_cast<float>(Frame) / SampleRate;
+			FTransform BoneTransform;
+			SourceAnimation->GetBoneTransform(BoneTransform, FSkeletonPoseBoneIndex(OldBoneIdx), Time, true);
+			PositionKeys.Add(FVector3f(BoneTransform.GetLocation()));
+			RotationKeys.Add(FQuat4f(BoneTransform.GetRotation()));
+			ScaleKeys.Add(FVector3f(BoneTransform.GetScale3D()));
+		}
+
+		Controller.RemoveBoneTrack(OldBoneName, false);
+		Controller.AddBoneCurve(NewBoneName, false);
+		Controller.SetBoneTrackKeys(NewBoneName, PositionKeys, RotationKeys, ScaleKeys, false);
+	}
+
+	Controller.CloseBracket(false);
+	SourceAnimation->MarkPackageDirty();
+	return SourceAnimation;
 }
 
 bool UBoneMappingTool::ApplyBoneMappingToAnimation(
@@ -447,23 +504,50 @@ bool UBoneMappingTool::ApplyBoneMappingToAnimation(
 
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
 	const int32 NumBones = RefSkeleton.GetNum();
+	const int32 NumFrames = Animation->GetNumberOfSampledKeys();
+	const FFrameRate AnimFrameRate = Animation->GetSamplingFrameRate();
+	const float SampleRate = AnimFrameRate.IsValid() ? AnimFrameRate.AsDecimal() : 30.0f;
+
+	IAnimationDataController& Controller = Animation->GetController();
+	Controller.OpenBracket(LOCTEXT("ApplyMapping", "Applying Bone Mapping"), false);
 
 	bool bAnyApplied = false;
 
-	for (int32 BoneIdx = 0; BoneIdx < NumBones; ++BoneIdx)
+	for (const FBoneMappingPair& Pair : Mapping.Mappings)
 	{
-		FName BoneName = RefSkeleton.GetBoneName(BoneIdx);
+		if (Pair.TargetBoneName == NAME_None) continue;
 
-		for (const FBoneMappingPair& Pair : Mapping.Mappings)
+		const int32 OldBoneIdx = RefSkeleton.FindBoneIndex(Pair.SourceBoneName);
+		if (OldBoneIdx == INDEX_NONE) continue;
+
+		const int32 NewBoneIdx = RefSkeleton.FindBoneIndex(Pair.TargetBoneName);
+		if (NewBoneIdx == INDEX_NONE) continue;
+
+		TArray<FVector3f> PositionKeys;
+		TArray<FQuat4f> RotationKeys;
+		TArray<FVector3f> ScaleKeys;
+		PositionKeys.Reserve(NumFrames);
+		RotationKeys.Reserve(NumFrames);
+		ScaleKeys.Reserve(NumFrames);
+
+		for (int32 Frame = 0; Frame < NumFrames; ++Frame)
 		{
-			if (Pair.SourceBoneName == BoneName && Pair.TargetBoneName != NAME_None)
-			{
-				bAnyApplied = true;
-				break;
-			}
+			const float Time = static_cast<float>(Frame) / SampleRate;
+			FTransform BoneTransform;
+			Animation->GetBoneTransform(BoneTransform, FSkeletonPoseBoneIndex(OldBoneIdx), Time, true);
+			PositionKeys.Add(FVector3f(BoneTransform.GetLocation()));
+			RotationKeys.Add(FQuat4f(BoneTransform.GetRotation()));
+			ScaleKeys.Add(FVector3f(BoneTransform.GetScale3D()));
 		}
+
+		Controller.RemoveBoneTrack(Pair.SourceBoneName, false);
+		Controller.AddBoneCurve(Pair.TargetBoneName, false);
+		Controller.SetBoneTrackKeys(Pair.TargetBoneName, PositionKeys, RotationKeys, ScaleKeys, false);
+		bAnyApplied = true;
 	}
 
+	Controller.CloseBracket(false);
+	Animation->MarkPackageDirty();
 	return bAnyApplied;
 }
 
@@ -505,7 +589,7 @@ UAnimSequence* UBoneMappingTool::AutoRemapAnimation(
 		*OutMapping = Mapping;
 	}
 
-	return SourceAnimation;
+	return RemapAnimationBones(SourceAnimation, Mapping, TargetSkeleton);
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -771,6 +855,349 @@ float UBoneMappingValidator::GetMappingCoverage(
 {
 	if (TotalSourceBones == 0) return 0.0f;
 	return static_cast<float>(Mapping.MappedCount) / static_cast<float>(TotalSourceBones);
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Skeleton Bone Detection
+// ───────────────────────────────────────────────────────────────────────────────
+
+TArray<FName> UBoneMappingTool::DetectSkeletonBones(USkeleton* Skeleton)
+{
+	TArray<FName> Result;
+	if (!Skeleton) return Result;
+
+	const FReferenceSkeleton& RefSkel = Skeleton->GetReferenceSkeleton();
+	const int32 BoneCount = RefSkel.GetNum();
+	Result.Reserve(BoneCount);
+
+	for (int32 i = 0; i < BoneCount; ++i)
+	{
+		Result.Add(RefSkel.GetBoneName(i));
+	}
+	return Result;
+}
+
+int32 UBoneMappingTool::GetSkeletonBoneCount(USkeleton* Skeleton)
+{
+	if (!Skeleton) return 0;
+	return Skeleton->GetReferenceSkeleton().GetNum();
+}
+
+bool UBoneMappingTool::HasBone(USkeleton* Skeleton, const FName& BoneName)
+{
+	if (!Skeleton) return false;
+	return Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneName) != INDEX_NONE;
+}
+
+int32 UBoneMappingTool::GetBoneParentIndex(USkeleton* Skeleton, const FName& BoneName)
+{
+	if (!Skeleton) return INDEX_NONE;
+	const FReferenceSkeleton& RefSkel = Skeleton->GetReferenceSkeleton();
+	const int32 BoneIdx = RefSkel.FindBoneIndex(BoneName);
+	if (BoneIdx == INDEX_NONE) return INDEX_NONE;
+	return RefSkel.GetParentIndex(BoneIdx);
+}
+
+TArray<FName> UBoneMappingTool::GetBoneChildren(USkeleton* Skeleton, const FName& BoneName)
+{
+	TArray<FName> Result;
+	if (!Skeleton) return Result;
+
+	const FReferenceSkeleton& RefSkel = Skeleton->GetReferenceSkeleton();
+	const int32 ParentIdx = RefSkel.FindBoneIndex(BoneName);
+	if (ParentIdx == INDEX_NONE) return Result;
+
+	const int32 BoneCount = RefSkel.GetNum();
+	for (int32 i = 0; i < BoneCount; ++i)
+	{
+		if (RefSkel.GetParentIndex(i) == ParentIdx)
+		{
+			Result.Add(RefSkel.GetBoneName(i));
+		}
+	}
+	return Result;
+}
+
+FString UBoneMappingTool::DetectBoneNamingConvention(USkeleton* Skeleton)
+{
+	if (!Skeleton) return TEXT("Unknown");
+
+	const FReferenceSkeleton& RefSkel = Skeleton->GetReferenceSkeleton();
+	const int32 BoneCount = RefSkel.GetNum();
+	if (BoneCount == 0) return TEXT("Empty");
+
+	int32 MixamoCount = 0;
+	int32 UnrealCount = 0;
+	int32 BlenderCount = 0;
+	int32 MayaCount = 0;
+	int32 GenericCount = 0;
+
+	static const TArray<FString> MixamoPrefixes = { TEXT("mixamorig:"), TEXT("mixamorig") };
+	static const TArray<FString> UnrealBones = { TEXT("root"), TEXT("pelvis"), TEXT("spine_01"), TEXT("spine_02"), TEXT("neck_01"), TEXT("head") };
+	static const TArray<FString> BlenderBones = { TEXT("DEF-spine"), TEXT("DEF-upper_arm"), TEXT("ORG-spine"), TEXT("MCH-spine") };
+	static const TArray<FString> MayaBones = { TEXT("Hip"), TEXT("Spine"), TEXT("Spine1"), TEXT("Spine2"), TEXT("Neck"), TEXT("Head") };
+
+	for (int32 i = 0; i < BoneCount; ++i)
+	{
+		const FString BoneName = RefSkel.GetBoneName(i).ToString();
+
+		bool bFound = false;
+		for (const FString& Prefix : MixamoPrefixes)
+		{
+			if (BoneName.StartsWith(Prefix, ESearchCase::IgnoreCase)) { MixamoCount++; bFound = true; break; }
+		}
+		if (bFound) continue;
+
+		for (const FString& UB : UnrealBones)
+		{
+			if (BoneName.Equals(UB, ESearchCase::IgnoreCase)) { UnrealCount++; bFound = true; break; }
+		}
+		if (bFound) continue;
+
+		for (const FString& BB : BlenderBones)
+		{
+			if (BoneName.StartsWith(BB, ESearchCase::IgnoreCase)) { BlenderCount++; bFound = true; break; }
+		}
+		if (bFound) continue;
+
+		for (const FString& MB : MayaBones)
+		{
+			if (BoneName.Equals(MB, ESearchCase::CaseSensitive)) { MayaCount++; bFound = true; break; }
+		}
+		if (bFound) continue;
+
+		GenericCount++;
+	}
+
+	const int32 Total = MixamoCount + UnrealCount + BlenderCount + MayaCount + GenericCount;
+	if (Total == 0) return TEXT("Unknown");
+
+	if (MixamoCount * 3 > Total) return TEXT("Mixamo");
+	if (UnrealCount * 3 > Total) return TEXT("Unreal");
+	if (BlenderCount * 3 > Total) return TEXT("Blender");
+	if (MayaCount * 3 > Total) return TEXT("Maya");
+	return TEXT("Generic");
+}
+
+bool UBoneMappingTool::RenameSkeletonBone(USkeleton* Skeleton, const FName& OldName, const FName& NewName)
+{
+	if (!Skeleton) return false;
+
+	const FReferenceSkeleton& RefSkel = Skeleton->GetReferenceSkeleton();
+	const int32 BoneIdx = RefSkel.FindBoneIndex(OldName);
+	if (BoneIdx == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BoneMappingTool: Bone '%s' not found in skeleton"), *OldName.ToString());
+		return false;
+	}
+
+	if (RefSkel.FindBoneIndex(NewName) != INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BoneMappingTool: Bone '%s' already exists in skeleton"), *NewName.ToString());
+		return false;
+	}
+
+	FReferenceSkeletonModifier Modifier(Skeleton);
+	Modifier.Rename(OldName, NewName);
+	Skeleton->MarkPackageDirty();
+	UE_LOG(LogTemp, Log, TEXT("BoneMappingTool: Renamed bone '%s' -> '%s'"), *OldName.ToString(), *NewName.ToString());
+	return true;
+}
+
+int32 UBoneMappingTool::RenameSkeletonBonesBatch(USkeleton* Skeleton, const TMap<FName, FName>& RenameMap)
+{
+	if (!Skeleton || RenameMap.Num() == 0) return 0;
+
+	int32 RenamedCount = 0;
+	for (const auto& Pair : RenameMap)
+	{
+		if (RenameSkeletonBone(Skeleton, Pair.Key, Pair.Value))
+		{
+			RenamedCount++;
+		}
+	}
+	return RenamedCount;
+}
+
+bool UBoneMappingTool::RenameSkeletonBonesToConvention(USkeleton* Skeleton, const FString& TargetConvention)
+{
+	if (!Skeleton) return false;
+
+	const FString CurrentConvention = DetectBoneNamingConvention(Skeleton);
+	if (CurrentConvention == TargetConvention)
+	{
+		UE_LOG(LogTemp, Log, TEXT("BoneMappingTool: Skeleton already uses '%s' convention"), *TargetConvention);
+		return true;
+	}
+
+	const FReferenceSkeleton& RefSkel = Skeleton->GetReferenceSkeleton();
+	const int32 BoneCount = RefSkel.GetNum();
+	TMap<FName, FName> RenameMap;
+
+	for (int32 i = 0; i < BoneCount; ++i)
+	{
+		const FString OldName = RefSkel.GetBoneName(i).ToString();
+		FString NewName = OldName;
+
+		if (CurrentConvention == TEXT("Mixamo") && TargetConvention == TEXT("Unreal"))
+		{
+			NewName = OldName.Replace(TEXT("mixamorig:"), TEXT(""), ESearchCase::IgnoreCase);
+			NewName = NewName.ToLower();
+		}
+		else if (CurrentConvention == TEXT("Unreal") && TargetConvention == TEXT("Mixamo"))
+		{
+			NewName = TEXT("mixamorig:") + OldName;
+		}
+		else if (CurrentConvention == TEXT("Maya") && TargetConvention == TEXT("Unreal"))
+		{
+			NewName = OldName.ToLower();
+			NewName = NewName.Replace(TEXT("_01"), TEXT(""), ESearchCase::IgnoreCase);
+			NewName = NewName.Replace(TEXT("_02"), TEXT(""), ESearchCase::IgnoreCase);
+		}
+		else if (CurrentConvention == TEXT("Unreal") && TargetConvention == TEXT("Maya"))
+		{
+			NewName = OldName;
+			if (NewName.Len() > 0)
+			{
+				NewName[0] = FChar::ToUpper(NewName[0]);
+			}
+			NewName = NewName.Replace(TEXT("_01"), TEXT("1"), ESearchCase::IgnoreCase);
+			NewName = NewName.Replace(TEXT("_02"), TEXT("2"), ESearchCase::IgnoreCase);
+			NewName = NewName.Replace(TEXT("_03"), TEXT("3"), ESearchCase::IgnoreCase);
+		}
+		else
+		{
+			continue;
+		}
+
+		if (OldName != NewName)
+		{
+			RenameMap.Add(FName(*OldName), FName(*NewName));
+		}
+	}
+
+	if (RenameMap.Num() == 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("BoneMappingTool: No bones need renaming for '%s' -> '%s'"), *CurrentConvention, *TargetConvention);
+		return true;
+	}
+
+	return RenameSkeletonBonesBatch(Skeleton, RenameMap) > 0;
+}
+
+FBoneMappingResult UBoneMappingTool::DetectAndMapSkeletonBones(USkeleton* SourceSkeleton, USkeleton* TargetSkeleton)
+{
+	TArray<FName> SourceBones = DetectSkeletonBones(SourceSkeleton);
+	return AutoMapBones(SourceBones, TargetSkeleton, EBoneMappingMethod::AllMethods);
+}
+
+TArray<FString> UBoneMappingTool::GetBoneHierarchy(USkeleton* Skeleton, int32 RootIndex)
+{
+	TArray<FString> Result;
+	if (!Skeleton) return Result;
+
+	const FReferenceSkeleton& RefSkel = Skeleton->GetReferenceSkeleton();
+	const int32 BoneCount = RefSkel.GetNum();
+	if (BoneCount == 0) return Result;
+
+	if (RootIndex < 0)
+	{
+		for (int32 i = 0; i < BoneCount; ++i)
+		{
+			if (RefSkel.GetParentIndex(i) == INDEX_NONE)
+			{
+				RootIndex = i;
+				break;
+			}
+		}
+	}
+
+	if (RootIndex < 0 || RootIndex >= BoneCount) return Result;
+
+	TFunction<void(int32, int32)> Traverse = [&](int32 BoneIdx, int32 Depth)
+	{
+		FString Indent;
+		for (int32 d = 0; d < Depth; ++d) Indent += TEXT("  ");
+		Result.Add(Indent + RefSkel.GetBoneName(BoneIdx).ToString());
+
+		const int32 TotalBones = BoneCount;
+		for (int32 i = 0; i < TotalBones; ++i)
+		{
+			if (RefSkel.GetParentIndex(i) == BoneIdx)
+			{
+				Traverse(i, Depth + 1);
+			}
+		}
+	};
+
+	Traverse(RootIndex, 0);
+	return Result;
+}
+
+bool UBoneMappingTool::IsSkeletonCompatible(USkeleton* SkeletonA, USkeleton* SkeletonB)
+{
+	if (!SkeletonA || !SkeletonB) return false;
+
+	const TArray<FName> BonesA = DetectSkeletonBones(SkeletonA);
+	const TArray<FName> BonesB = DetectSkeletonBones(SkeletonB);
+
+	int32 MatchCount = 0;
+	for (const FName& BoneA : BonesA)
+	{
+		for (const FName& BoneB : BonesB)
+		{
+			if (BoneA == BoneB || IsCaseInsensitiveMatch(BoneA.ToString(), BoneB.ToString()))
+			{
+				MatchCount++;
+				break;
+			}
+		}
+	}
+
+	const float Compatibility = (BonesA.Num() > 0)
+		? static_cast<float>(MatchCount) / static_cast<float>(BonesA.Num())
+		: 0.0f;
+
+	return Compatibility >= 0.5f;
+}
+
+UAnimSequence* UBoneMappingTool::RemapAnimationToSkeleton(UAnimSequence* Animation, USkeleton* TargetSkeleton, bool bAutoDetect)
+{
+	if (!Animation || !TargetSkeleton) return nullptr;
+
+	if (bAutoDetect)
+	{
+		USkeleton* SourceSkeleton = Animation->GetSkeleton();
+		if (SourceSkeleton && IsSkeletonCompatible(SourceSkeleton, TargetSkeleton))
+		{
+			FBoneMappingResult Mapping = DetectAndMapSkeletonBones(SourceSkeleton, TargetSkeleton);
+			return RemapAnimationBones(Animation, Mapping, TargetSkeleton);
+		}
+	}
+
+	TArray<FName> AnimBones = GetSourceBoneNamesFromAnimation(Animation);
+	FBoneMappingResult Mapping = AutoMapBones(AnimBones, TargetSkeleton, EBoneMappingMethod::AllMethods);
+	return RemapAnimationBones(Animation, Mapping, TargetSkeleton);
+}
+
+TMap<FName, FName> UBoneMappingTool::FindBoneRenamingPairs(USkeleton* SourceSkeleton, USkeleton* TargetSkeleton)
+{
+	TMap<FName, FName> Result;
+	if (!SourceSkeleton || !TargetSkeleton) return Result;
+
+	const TArray<FName> SourceBones = DetectSkeletonBones(SourceSkeleton);
+
+	for (const FName& SrcBone : SourceBones)
+	{
+		float Confidence = 0.0f;
+		FName BestMatch = FindBestMatch(SrcBone, TargetSkeleton, EBoneMappingMethod::AllMethods, &Confidence);
+
+		if (Confidence > 0.5f && SrcBone != BestMatch)
+		{
+			Result.Add(SrcBone, BestMatch);
+		}
+	}
+	return Result;
 }
 
 #undef LOCTEXT_NAMESPACE

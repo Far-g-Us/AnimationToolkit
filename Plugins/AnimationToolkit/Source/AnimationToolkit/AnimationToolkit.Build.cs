@@ -17,7 +17,9 @@ public class AnimationToolkit : ModuleRules
 			"SkeletalMeshDescription",
 			"MeshDescription",
 			"Json",
-			"JsonUtilities"
+			"JsonUtilities",
+			"LevelSequence",
+			"MovieScene"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
@@ -36,13 +38,15 @@ public class AnimationToolkit : ModuleRules
 			"LevelEditor",
 			"PropertyEditor",
 			"WorkspaceMenuStructure",
-			"AutomationController"
+			"AutomationController",
+			"IKRig"
 		});
 
 		if (Target.bBuildEditor)
 		{
 			PrivateDependencyModuleNames.Add("UnrealEd");
 			PrivateDependencyModuleNames.Add("AssetTools");
+			PrivateDependencyModuleNames.Add("IKRigEditor");
 		}
 
 		string AssimpPath = Path.Combine(ModuleDirectory, "..", "..", "ThirdParty", "Assimp");

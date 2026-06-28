@@ -3,7 +3,6 @@
 #include "Animation/Skeleton.h"
 #include "Animation/AnimData/IAnimationDataController.h"
 #include "Animation/AnimData/IAnimationDataModel.h"
-#include "Animation/AnimData/AnimDataModel.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 #include "AssetRegistry/AssetRegistryModule.h"

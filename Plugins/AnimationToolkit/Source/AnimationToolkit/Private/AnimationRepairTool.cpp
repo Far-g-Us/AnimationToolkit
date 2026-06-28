@@ -2,9 +2,13 @@
 #include "BoneMappingTool.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
+#include "Animation/AnimData/IAnimationDataController.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+
+#define LOCTEXT_NAMESPACE "AnimationRepairTool"
 
 UAnimSequence* UAnimationRepairTool::RepairAnimationMissingBones(
 	UObject* WorldContextObject,
@@ -80,6 +84,8 @@ UAnimSequence* UAnimationRepairTool::RepairAnimationMissingBones(
 	}
 
 	RepairedAnim->SetSkeleton(TargetSkeleton);
+	FillMissingBonesWithRestPose(RepairedAnim, TargetSkeleton, MissingBones);
+	RemoveExtraTracks(RepairedAnim, ExtraBones);
 	RepairedAnim->MarkPackageDirty();
 	FAssetRegistryModule::AssetCreated(RepairedAnim);
 
@@ -115,27 +121,43 @@ UAnimSequence* UAnimationRepairTool::ReassignAnimationSkeleton(
 	Result.bSuccess = true;
 
 	const USkeleton* OldSkeleton = SourceAnimation->GetSkeleton();
-	if (OldSkeleton)
+	if (!OldSkeleton)
 	{
-		const FReferenceSkeleton& OldRefSkel = OldSkeleton->GetReferenceSkeleton();
-		const FReferenceSkeleton& NewRefSkel = NewSkeleton->GetReferenceSkeleton();
-
-		int32 MatchedBones = 0;
-		for (int32 i = 0; i < OldRefSkel.GetNum(); ++i)
+		if (OutResult)
 		{
-			const FName BoneName = OldRefSkel.GetBoneName(i);
-			if (NewRefSkel.FindBoneIndex(BoneName) != INDEX_NONE)
-			{
-				MatchedBones++;
-			}
+			OutResult->bSuccess = false;
 		}
-
-		Result.BonesRepaired = MatchedBones;
-		Result.BonesStillMissing = OldRefSkel.GetNum() - MatchedBones;
-
-		UE_LOG(LogTemp, Log, TEXT("ReassignAnimationSkeleton: %d/%d bones matched"),
-			MatchedBones, OldRefSkel.GetNum());
+		return nullptr;
 	}
+
+	const FReferenceSkeleton& OldRefSkel = OldSkeleton->GetReferenceSkeleton();
+	const FReferenceSkeleton& NewRefSkel = NewSkeleton->GetReferenceSkeleton();
+
+	const IAnimationDataModel* SourceModel = SourceAnimation->GetDataModel();
+	if (!SourceModel)
+	{
+		if (OutResult)
+		{
+			OutResult->bSuccess = false;
+		}
+		return nullptr;
+	}
+
+	int32 MatchedBones = 0;
+	for (int32 i = 0; i < OldRefSkel.GetNum(); ++i)
+	{
+		const FName BoneName = OldRefSkel.GetBoneName(i);
+		if (NewRefSkel.FindBoneIndex(BoneName) != INDEX_NONE)
+		{
+			MatchedBones++;
+		}
+	}
+
+	Result.BonesRepaired = MatchedBones;
+	Result.BonesStillMissing = OldRefSkel.GetNum() - MatchedBones;
+
+	UE_LOG(LogTemp, Log, TEXT("ReassignAnimationSkeleton: %d/%d bones matched"),
+		MatchedBones, OldRefSkel.GetNum());
 
 	const FString NewName = SourceAnimation->GetName() + TEXT("_Reassigned");
 	const FString PackagePath = TEXT("/Game/Animations/") + NewName;
@@ -145,7 +167,6 @@ UAnimSequence* UAnimationRepairTool::ReassignAnimationSkeleton(
 		if (OutResult)
 		{
 			OutResult->bSuccess = false;
-	
 		}
 		return nullptr;
 	}
@@ -156,12 +177,55 @@ UAnimSequence* UAnimationRepairTool::ReassignAnimationSkeleton(
 		if (OutResult)
 		{
 			OutResult->bSuccess = false;
-	
 		}
 		return nullptr;
 	}
 
 	NewAnim->SetSkeleton(NewSkeleton);
+
+	IAnimationDataController& NewController = NewAnim->GetController();
+
+	const float FrameRate = SourceModel->GetFrameRate().AsDecimal();
+	const int32 NumFrames = SourceModel->GetNumberOfFrames();
+
+	for (const FBoneAnimationTrack& SourceTrack : SourceModel->GetBoneAnimationTracks())
+	{
+		const FName BoneName = SourceTrack.Name;
+
+		if (NewRefSkel.FindBoneIndex(BoneName) == INDEX_NONE)
+		{
+			continue;
+		}
+
+		NewController.AddBoneCurve(BoneName, false);
+
+		const FRawAnimSequenceTrack& SourceRaw = SourceTrack.InternalTrackData;
+
+		TArray<FVector3f> PosKeys = SourceRaw.PosKeys;
+		TArray<FQuat4f> RotKeys = SourceRaw.RotKeys;
+		TArray<FVector3f> ScaleKeys = SourceRaw.ScaleKeys;
+
+		if (bAutoRemap && OldSkeleton != NewSkeleton)
+		{
+			for (int32 i = 0; i < PosKeys.Num(); ++i)
+			{
+				const int32 OldBoneIdx = OldRefSkel.FindBoneIndex(BoneName);
+				const int32 NewBoneIdx = NewRefSkel.FindBoneIndex(BoneName);
+
+				if (OldBoneIdx != INDEX_NONE && NewBoneIdx != INDEX_NONE)
+				{
+					const FTransform OldOffset = OldRefSkel.GetRefBonePose()[OldBoneIdx];
+					const FTransform NewOffset = NewRefSkel.GetRefBonePose()[NewBoneIdx];
+
+					const FVector3f RestDiff = FVector3f(NewOffset.GetTranslation() - OldOffset.GetTranslation());
+					PosKeys[i] = PosKeys[i] + RestDiff;
+				}
+			}
+		}
+
+		NewController.SetBoneTrackKeys(BoneName, PosKeys, RotKeys, ScaleKeys, false);
+	}
+
 	NewAnim->MarkPackageDirty();
 	FAssetRegistryModule::AssetCreated(NewAnim);
 
@@ -364,16 +428,38 @@ void UAnimationRepairTool::FillMissingBonesWithRestPose(
 	USkeleton* Skeleton,
 	const TArray<FName>& MissingBones)
 {
-	if (!Animation || !Skeleton)
+	if (!Animation || !Skeleton || MissingBones.Num() == 0)
 	{
 		return;
 	}
 
+	IAnimationDataController& Controller = Animation->GetController();
+
+	const FReferenceSkeleton& RefSkel = Skeleton->GetReferenceSkeleton();
+
+	Controller.OpenBracket(LOCTEXT("FillMissing", "Fill Missing Bones With Rest Pose"), false);
+
 	for (const FName& BoneName : MissingBones)
 	{
-		UE_LOG(LogTemp, Log, TEXT("FillMissingBonesWithRestPose: Filling bone '%s' with rest pose"), *BoneName.ToString());
+		const int32 BoneIdx = RefSkel.FindBoneIndex(BoneName);
+		if (BoneIdx == INDEX_NONE)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("FillMissingBonesWithRestPose: Bone '%s' not found in target skeleton"), *BoneName.ToString());
+			continue;
+		}
+
+		const FTransform RestPose = RefSkel.GetRefBonePose()[BoneIdx];
+
+		Controller.AddBoneCurve(BoneName, false);
+		Controller.SetBoneTrackKeys(BoneName,
+			{ FVector3f(RestPose.GetLocation()) },
+			{ FQuat4f(RestPose.GetRotation()) },
+			{ FVector3f(RestPose.GetScale3D()) },
+			false
+		);
 	}
 
+	Controller.CloseBracket(false);
 	Animation->MarkPackageDirty();
 }
 
@@ -381,15 +467,27 @@ void UAnimationRepairTool::RemoveExtraTracks(
 	UAnimSequence* Animation,
 	const TArray<FName>& ExtraBones)
 {
-	if (!Animation)
+	if (!Animation || ExtraBones.Num() == 0)
 	{
 		return;
 	}
 
+	IAnimationDataController& Controller = Animation->GetController();
+
+	Controller.OpenBracket(LOCTEXT("RemoveExtra", "Remove Extra Bone Tracks"), false);
+
 	for (const FName& BoneName : ExtraBones)
 	{
-		UE_LOG(LogTemp, Log, TEXT("RemoveExtraTracks: Removing track '%s'"), *BoneName.ToString());
+		if (Controller.RemoveBoneTrack(BoneName, false))
+		{
+			UE_LOG(LogTemp, Log, TEXT("RemoveExtraTracks: Removed track '%s'"), *BoneName.ToString());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("RemoveExtraTracks: Failed to remove track '%s'"), *BoneName.ToString());
+		}
 	}
 
+	Controller.CloseBracket(false);
 	Animation->MarkPackageDirty();
 }

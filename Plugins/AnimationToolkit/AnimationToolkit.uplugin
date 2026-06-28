@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "Animation Toolkit",
-	"Description": "Create and import animations (FBX, glTF, BVH) via Blueprints",
+	"Description": "Create, import, export, edit, optimize, mirror, retarget, compress, diagnose, and batch-process animations via Blueprints. Supports FBX, glTF, BVH, COLLADA, USD (40+ formats).",
 	"Category": "Animation",
 	"CreatedBy": "AnimationToolkit",
 	"CreatedByURL": "",
@@ -13,6 +13,7 @@
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
 	"Installed": false,
+	"EngineVersion": "5.5.0",
 	"Modules": [
 		{
 			"Name": "AnimationToolkit",
